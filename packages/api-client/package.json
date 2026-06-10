@@ -1,0 +1,21 @@
+{
+  "name": "@js-rag-stack/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@js-rag-stack/eslint-config": "workspace:*",
+    "@js-rag-stack/typescript-config": "workspace:*",
+    "eslint": "10.4.1",
+    "typescript": "6.0.3"
+  }
+}

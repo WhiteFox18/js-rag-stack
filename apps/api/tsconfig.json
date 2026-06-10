@@ -1,0 +1,9 @@
+{
+  "extends": "@js-rag-stack/typescript-config/nestjs.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "types": ["node", "jest"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
+}

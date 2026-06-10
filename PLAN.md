@@ -1,0 +1,583 @@
+# Local LLM Chat Application - Implementation Plan
+
+## 1. Goal
+
+Build a production-structured local-first chat application with:
+
+- React SPA frontend.
+- NestJS backend.
+- pnpm workspace managed by Turborepo.
+- Ollama model selection and streamed responses over Server-Sent Events (SSE).
+- PostgreSQL persistence through Prisma.
+- Redis conversation-history caching.
+- Optional authentication: anonymous users can chat, while authenticated users can retain and manage their chats across sessions and devices.
+
+The first supported example model is `qwen2.5:1.5b`. The backend must only expose models that are both installed in Ollama and included in `OLLAMA_ALLOWED_MODELS`.
+
+## 2. Locked Decisions
+
+- Package manager: pnpm.
+- Monorepo task runner: Turborepo.
+- Frontend: React, Vite, TypeScript, React Router, TanStack Query, Tailwind CSS only.
+- Backend: NestJS with the default Express adapter, TypeScript, REST, Swagger/OpenAPI.
+- Database: dedicated local PostgreSQL database `js_rag_stack` at port `5432`.
+- ORM: Prisma with committed migrations.
+- Persistence naming: database columns and Prisma persistence fields use
+  `snake_case` directly; do not use `@map` or convert database records to
+  camelCase.
+- Cache: local Redis at port `6379`.
+- LLM runtime: local Ollama, normally at `http://127.0.0.1:11434`.
+- IDs: UUIDv7 for all primary keys, using Prisma `uuid(7)` and PostgreSQL's native `uuid` column type.
+- Authentication: access and refresh JWTs in separate HttpOnly cookies.
+- Access-token lifetime: one day.
+- Refresh-token lifetime: seven days.
+- Refresh tokens: rotated, hashed in PostgreSQL, revocable, and usable from multiple devices.
+- Anonymous chats: persisted and transferred to the account after successful sign-in or sign-up.
+- LLM response transport: POST request whose response uses `Content-Type: text/event-stream`; the SPA consumes the stream using `fetch()` and a `ReadableStream`, not native `EventSource`.
+- Infrastructure containers: out of scope for the initial implementation.
+
+## 3. Repository Layout
+
+```text
+.
+|-- apps/
+|   |-- api/                  # NestJS application
+|   `-- web/                  # React SPA
+|-- packages/
+|   |-- api-client/           # Generated OpenAPI client used by the SPA
+|   |-- eslint-config/        # Shared lint rules
+|   |-- typescript-config/    # Shared tsconfig bases
+|   `-- contracts/            # SSE event types and framework-neutral enums
+|-- pnpm-workspace.yaml
+|-- turbo.json
+|-- package.json
+|-- .env.example
+`-- README.md
+```
+
+Do not put business logic in shared packages. Domain behavior remains owned by the API. Shared contracts contain transport types only.
+
+## 4. Backend Module Boundaries
+
+```text
+apps/api/src/
+|-- main.ts
+|-- app.module.ts
+|-- config/                   # Validated environment configuration
+|-- common/
+|   |-- decorators/
+|   |-- filters/
+|   |-- guards/
+|   |-- interceptors/
+|   `-- middleware/
+|-- prisma/
+|   |-- prisma.module.ts
+|   `-- prisma.service.ts
+|-- redis/
+|   |-- redis.module.ts
+|   `-- redis.service.ts
+|-- auth/
+|   |-- auth.controller.ts
+|   |-- auth.service.ts
+|   |-- auth.module.ts
+|   |-- dto/
+|   |-- guards/
+|   |-- strategies/
+|   `-- models/
+|-- users/
+|   |-- users.controller.ts
+|   |-- users.service.ts
+|   `-- users.module.ts
+|-- chats/
+|   |-- chats.controller.ts
+|   |-- chats.service.ts
+|   |-- chat-history.service.ts
+|   |-- chat-stream.service.ts
+|   |-- chats.module.ts
+|   |-- dto/
+|   `-- models/
+|-- ollama/
+|   |-- ollama.module.ts
+|   |-- ollama.service.ts
+|   |-- ollama-client.service.ts
+|   `-- models/
+`-- health/
+    |-- health.controller.ts
+    `-- health.module.ts
+```
+
+Responsibilities:
+
+- Controllers own HTTP parsing, status codes, cookies, Swagger decorators, and stream framing.
+- Services own use cases and transaction boundaries.
+- Prisma repositories are accessed through domain services; controllers never call Prisma directly.
+- `OllamaService` is the only domain-facing LLM abstraction.
+- `OllamaClientService` owns HTTP calls, timeouts, abort handling, NDJSON parsing, and translation of Ollama errors.
+- `ChatHistoryService` owns cache-aside reads and cache synchronization.
+- `ChatStreamService` orchestrates persistence, history assembly, Ollama streaming, SSE events, and cancellation.
+
+## 5. Prisma Data Model
+
+Use explicit relation names, indexes, timestamps, enums, and `onDelete` behavior. Every primary key is:
+
+```prisma
+id String @id @default(uuid(7)) @db.Uuid
+```
+
+All persisted field names in the Prisma schema use `snake_case`, so Prisma
+inputs and returned database records also expose `snake_case` properties.
+
+### User
+
+- `id`
+- `email` - normalized lowercase and unique.
+- `passwordHash`
+- `displayName` - optional.
+- `createdAt`
+- `updatedAt`
+- Relations to chats and refresh sessions.
+
+### AnonymousSession
+
+- `id`
+- `tokenHash` - unique; never store the raw cookie token.
+- `expiresAt`
+- `createdAt`
+- `lastSeenAt`
+- Relation to chats.
+
+The raw high-entropy anonymous token is stored only in an HttpOnly cookie. An expired session cannot access its chats.
+
+### AuthSession
+
+- `id`
+- `userId`
+- `refreshTokenHash`
+- `refreshJti` - unique UUIDv7 JWT ID.
+- `userAgent` - optional, truncated.
+- `ipHash` - optional; do not retain raw IP solely for session display.
+- `expiresAt`
+- `revokedAt` - optional.
+- `replacedBySessionId` - optional, for rotation lineage.
+- `createdAt`
+- `lastUsedAt`
+- Indexes on `userId`, `refreshJti`, and `expiresAt`.
+
+Each browser/device has its own session. Refresh rotates the token and session record atomically. Reuse of a revoked refresh token revokes its rotation family.
+
+### Chat
+
+- `id`
+- `userId` - nullable.
+- `anonymousSessionId` - nullable.
+- `title` - initially derived from the first user prompt and editable later.
+- `selectedModel` - the allowed model selected for the chat.
+- `createdAt`
+- `updatedAt`
+- `lastMessageAt`
+- `archivedAt` - optional.
+- Relations to messages.
+- Indexes on `(userId, lastMessageAt)` and `(anonymousSessionId, lastMessageAt)`.
+
+Application validation enforces exactly one owner: `userId` or `anonymousSessionId`. Add a SQL check constraint in the migration because Prisma schema syntax does not model this constraint directly.
+
+### Message
+
+- `id`
+- `chatId`
+- `role` - `USER` or `ASSISTANT`.
+- `status` - `STREAMING`, `COMPLETED`, `FAILED`, or `CANCELLED`.
+- `content` - PostgreSQL `text`.
+- `model` - nullable for user messages; required for assistant messages.
+- `tokenCount` - tokens attributable to this message.
+- `tokenCountSource` - `OLLAMA_REPORTED`, `ESTIMATED`, or `UNKNOWN`.
+- `promptTokens` - nullable; full context tokens reported for the assistant generation.
+- `completionTokens` - nullable; generated tokens reported by Ollama.
+- `totalTokens` - nullable.
+- `finishReason` - optional.
+- `errorCode` - optional sanitized internal classification.
+- `createdAt`
+- `updatedAt`
+- Index on `(chatId, createdAt, id)` for deterministic history ordering.
+
+Ollama reports prompt tokens for the entire request and completion tokens for the response. Therefore:
+
+- Assistant `completionTokens` and `tokenCount` use Ollama's final `eval_count`.
+- Assistant `promptTokens` uses `prompt_eval_count`.
+- User `tokenCount` is an estimate and is explicitly marked `ESTIMATED`; do not present it as exact.
+
+## 6. Ownership and Anonymous-Chat Transfer
+
+Every chat endpoint resolves a `RequestPrincipal` containing either an authenticated `userId` or a valid `anonymousSessionId`.
+
+- On the first anonymous mutation, create an anonymous session and set its opaque cookie.
+- A chat is readable or writable only by its current owner.
+- On sign-up or sign-in, transfer all chats for the current anonymous session to the authenticated user in one database transaction.
+- After transfer, invalidate the anonymous session and clear its cookie.
+- Never accept owner IDs from request bodies.
+
+## 7. Authentication Design
+
+### Password and JWT handling
+
+- Hash passwords with Argon2id using reviewed parameters appropriate for the host machine.
+- Store access and refresh JWTs in separate HttpOnly cookies.
+- Use independent secrets and validate them at startup.
+- Access JWT claims: `sub`, `sessionId`, `jti`, `type=access`, `iat`, `exp`.
+- Refresh JWT claims: `sub`, `sessionId`, `jti`, `type=refresh`, `iat`, `exp`.
+- Cookies use `HttpOnly`, `Secure` outside local HTTP development, an explicit `Path`, and an environment-configured `SameSite` policy.
+- Refresh cookie should be limited to the refresh/sign-out path where practical.
+- API responses never expose raw tokens.
+
+### CSRF and browser security
+
+Because authentication is cookie-based:
+
+- Restrict CORS to the configured SPA origin and enable credentials.
+- Validate `Origin` on state-changing requests.
+- Use a double-submit CSRF token for POST/PATCH/DELETE operations, including anonymous chat creation and streaming.
+- Add Helmet and conservative security headers.
+- Apply rate limits separately to auth, chat streaming, and ordinary API routes.
+- Do not log passwords, cookies, JWTs, raw refresh tokens, or full prompts by default.
+
+### Endpoints
+
+- `POST /api/v1/auth/sign-up`
+- `POST /api/v1/auth/sign-in`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/sign-out` - current session.
+- `POST /api/v1/auth/sign-out-all` - all user sessions.
+- `GET /api/v1/auth/me`
+- `GET /api/v1/auth/sessions`
+- `DELETE /api/v1/auth/sessions/:sessionId`
+
+## 8. Ollama Integration
+
+At startup:
+
+1. Parse `OLLAMA_ALLOWED_MODELS` as a comma-separated, non-empty allowlist.
+2. Ensure `OLLAMA_DEFAULT_MODEL` is in that allowlist.
+3. Do not fail the API startup merely because Ollama is temporarily unavailable; expose the failure through health and model endpoints.
+
+At runtime:
+
+- `GET /api/v1/models` calls or periodically caches Ollama `GET /api/tags`.
+- Return the intersection of installed models and the configured allowlist.
+- Mark the configured default model.
+- Reject a chat model not in the allowlist before contacting Ollama.
+- Return a clear unavailable response if an allowed model is not installed locally.
+- Send Ollama `POST /api/chat` with `stream: true`, the selected model, and the complete ordered message history.
+- Set connect, first-token, idle, and total generation timeouts.
+- Propagate browser cancellation through `AbortController` to Ollama.
+- Limit prompt length, message length, history size, and concurrent generations per principal.
+- Do not expose model chain-of-thought or `thinking` fields to clients or persist them.
+
+## 9. Redis Chat History
+
+Use Redis as a cache, never as the source of truth.
+
+- Key: the chat UUID string, as requested.
+- Value: one JSON string containing the ordered history needed by Ollama.
+- Suggested value shape:
+
+```json
+[
+  { "role": "user", "content": "Hello" },
+  { "role": "assistant", "content": "Hi", "model": "qwen2.5:1.5b" }
+]
+```
+
+- TTL: configurable, default 24 hours.
+- Cache read: `GET chatId`; on miss, load completed messages from PostgreSQL, serialize, and populate Redis.
+- Before generation, persist the user message in PostgreSQL, then append it to the cached history.
+- After successful generation, finalize the assistant message in PostgreSQL, then append it to Redis.
+- On cache-write failure, continue from PostgreSQL and log a structured warning.
+- On database-write failure, do not update Redis.
+- On message deletion, chat deletion, ownership transfer, or administrative correction, invalidate the chat key.
+- Prevent simultaneous generations in the same chat with a short-lived Redis lock keyed separately from the history value.
+
+Cache updates must be serialized per chat. A stale or malformed cache entry is discarded and rebuilt from PostgreSQL.
+
+## 10. Chat API and SSE Contract
+
+### Ordinary endpoints
+
+- `POST /api/v1/chats` - create a chat with selected model and optional first prompt.
+- `GET /api/v1/chats` - cursor-paginated owned chats.
+- `GET /api/v1/chats/:chatId` - chat metadata and cursor-paginated messages.
+- `PATCH /api/v1/chats/:chatId` - rename, archive, or change model for future messages.
+- `DELETE /api/v1/chats/:chatId` - delete owned chat and invalidate cache.
+- `POST /api/v1/chats/:chatId/messages/stream` - add a user message and stream the assistant response.
+
+### Stream request
+
+```json
+{
+  "content": "Explain UUIDv7",
+  "model": "qwen2.5:1.5b"
+}
+```
+
+The model may default to the chat model. If supplied, it must be allowed and becomes the model recorded on that assistant message. Model changes affect future responses only.
+
+### Stream events
+
+Use named SSE events with JSON payloads:
+
+- `stream.started` - chat ID, user message ID, assistant message ID, and model.
+- `message.delta` - assistant message ID and text delta.
+- `message.completed` - final message, token metadata, finish reason, and timestamps.
+- `stream.error` - stable public error code and safe message.
+- `stream.cancelled` - assistant message ID and persisted partial-response status.
+- `heartbeat` - comment or event sent periodically to keep proxies from timing out.
+
+Each frame follows standard SSE framing and ends with a blank line. Set headers to disable buffering and caching. The response closes after completed, error, or cancelled.
+
+### Generation transaction sequence
+
+1. Resolve and authorize the chat owner.
+2. Validate the selected model and input limits.
+3. Acquire the per-chat generation lock.
+4. Load history from Redis or PostgreSQL.
+5. Persist the user message and an assistant placeholder with `STREAMING` status in one transaction.
+6. Append the user message to the cached history.
+7. Call Ollama with the entire history plus the new user message.
+8. Forward content chunks as `message.delta` events while buffering the assistant text in memory with a strict maximum size.
+9. On completion, update the assistant row with final text, `COMPLETED`, model, and Ollama token metadata.
+10. Append the completed assistant message to Redis and emit `message.completed`.
+11. On disconnect, abort Ollama and persist buffered partial text as `CANCELLED`.
+12. On upstream failure, mark the placeholder `FAILED`, emit a sanitized error, and release the lock.
+
+Do not include failed or cancelled assistant messages in future Ollama context unless a later product decision explicitly enables partial-message continuation.
+
+## 11. Frontend Plan
+
+### Screens and layout
+
+- Chat shell with collapsible history sidebar.
+- New-chat action.
+- Chat list grouped by recency.
+- Main transcript with distinct user and assistant rows.
+- Sticky composer with submit and stop-generation actions.
+- Model selector populated by `GET /models`.
+- Authentication pages or modal for sign-up and sign-in.
+- Account/session management view.
+- Responsive mobile layout.
+
+### Interaction behavior
+
+- Anonymous visitors can immediately create a chat.
+- Show the user's message optimistically after the stream is accepted.
+- Render assistant deltas incrementally.
+- Disable duplicate submission while the same chat is generating.
+- Allow cancellation with `AbortController`.
+- Recover the authoritative chat from the API after stream completion or failure.
+- Show model name and token metadata in a subtle expandable message footer.
+- Preserve unfinished composer text locally.
+- Use accessible semantic controls, visible focus states, reduced-motion support, and keyboard submission behavior.
+
+### State boundaries
+
+- TanStack Query owns server state: auth principal, models, chat lists, and messages.
+- A small chat-stream hook owns the active `fetch` request, SSE frame parsing, temporary deltas, cancellation, and terminal events.
+- Do not duplicate durable chat history in a global client store.
+- Send cookies with `credentials: 'include'` and attach the CSRF header to mutations.
+
+## 12. Environment Contract
+
+Create a documented `.env.example` containing placeholders, never working secrets:
+
+```dotenv
+NODE_ENV=development
+API_PORT=3000
+WEB_ORIGIN=http://localhost:5173
+API_BASE_URL=http://localhost:3000
+
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/js_rag_stack?schema=public
+REDIS_URL=redis://localhost:6379
+REDIS_CHAT_TTL_SECONDS=86400
+
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_ALLOWED_MODELS=qwen2.5:1.5b
+OLLAMA_DEFAULT_MODEL=qwen2.5:1.5b
+OLLAMA_CONNECT_TIMEOUT_MS=5000
+OLLAMA_IDLE_TIMEOUT_MS=30000
+OLLAMA_TOTAL_TIMEOUT_MS=300000
+
+JWT_ACCESS_SECRET=replace-with-at-least-32-random-bytes
+JWT_REFRESH_SECRET=replace-with-a-different-32-byte-secret
+JWT_ACCESS_TTL=1d
+JWT_REFRESH_TTL=7d
+COOKIE_SECURE=false
+COOKIE_SAME_SITE=lax
+COOKIE_DOMAIN=
+CSRF_SECRET=replace-with-at-least-32-random-bytes
+ANONYMOUS_SESSION_TTL=30d
+
+LOG_LEVEL=debug
+```
+
+Validate all environment variables at startup with a schema. Reject weak or missing secrets outside test environments.
+
+## 13. Swagger and API Documentation
+
+- Serve Swagger UI at `/docs` in development.
+- Serve the OpenAPI JSON document at `/docs-json`.
+- Document all DTOs, cookie auth behavior, error responses, pagination, and model restrictions.
+- Add an OpenAPI cookie security scheme for access authentication.
+- Swagger can exercise ordinary endpoints, but document that streamed chat testing is more reliable through the SPA or `curl -N`.
+- Generate `packages/api-client` from the OpenAPI document and fail CI when generated code is stale.
+
+## 14. Error Model and Observability
+
+Use a stable API error envelope outside the SSE route:
+
+```json
+{
+  "error": {
+    "code": "MODEL_NOT_AVAILABLE",
+    "message": "The selected model is not available.",
+    "requestId": "..."
+  }
+}
+```
+
+- Add a request ID middleware and return the ID in headers and errors.
+- Use structured JSON logs in the API.
+- Log timing, chat ID, model, status, and token counts, but redact message content by default.
+- Add health checks for API process, PostgreSQL, Redis, and Ollama.
+- Distinguish readiness from liveness; Ollama degradation should be visible without making unrelated auth endpoints unavailable.
+
+## 15. Implementation Phases
+
+### Phase 1 - Monorepo walking skeleton
+
+- Initialize pnpm workspace, Turborepo, shared TypeScript/ESLint configuration, NestJS app, React/Vite app, and Tailwind.
+- Add root scripts for `dev`, `build`, `lint`, `typecheck`, `test`, and `format`.
+- Add validated configuration and `.env.example`.
+- Add API health endpoint and a frontend page that calls it.
+- Add baseline CI running install, lint, typecheck, tests, and build.
+
+Verification: one command starts both apps; SPA displays live API health; all root quality commands pass.
+
+### Phase 2 - Persistence and ownership foundation
+
+- Configure Prisma and PostgreSQL.
+- Implement the full schema and initial migration, including UUIDv7 and ownership check constraints.
+- Add Prisma and Redis modules.
+- Implement anonymous-session cookie creation and principal resolution.
+- Add cache serialization, cache-aside reads, invalidation, and per-chat locking.
+- Add database and Redis health checks.
+
+Verification: migrations apply to an empty database; anonymous chat ownership is isolated; cache miss/hit/rebuild behavior passes integration tests.
+
+### Phase 3 - Authentication and session security
+
+- Implement sign-up, sign-in, refresh rotation, sign-out, sign-out-all, session listing, and session revocation.
+- Add Argon2id password hashing, JWT strategies, cookie helpers, CSRF protection, CORS, Helmet, and rate limits.
+- Transfer anonymous chats after authentication.
+- Document endpoints in Swagger.
+
+Verification: multi-device sessions work independently; refresh reuse is detected; revoked sessions fail; anonymous chats transfer exactly once.
+
+### Phase 4 - Ollama and streamed chat backend
+
+- Implement allowed/installed model discovery.
+- Implement Ollama streaming client and domain service.
+- Implement chat CRUD, history loading, generation locking, persistence lifecycle, SSE framing, cancellation, and token metadata.
+- Add input/context/concurrency limits and stable error mapping.
+- Complete Swagger documentation and generate the API client.
+
+Verification: `qwen2.5:1.5b` streams through the API; full prior history reaches Ollama; DB and Redis converge after completion, cancellation, cache failure, and Ollama failure.
+
+### Phase 5 - Chat SPA
+
+- Build the responsive ChatGPT-style shell using Tailwind only.
+- Add model selection, chat CRUD, streamed rendering, cancellation, history pagination, auth flows, and account sessions.
+- Add accessible loading, empty, degraded, and error states.
+- Show message model and token metadata.
+
+Verification: anonymous and authenticated end-to-end chat flows pass in browser tests; refresh works without exposing tokens to JavaScript.
+
+### Phase 6 - Hardening and release readiness
+
+- Add end-to-end tests, abuse-case tests, migration checks, generated-client checks, and SSE disconnect tests.
+- Add graceful shutdown for HTTP, Prisma, Redis, and active Ollama streams.
+- Add production configuration guidance, secret requirements, backup notes, and local setup documentation.
+- Profile long conversations and enforce documented context limits.
+- Run dependency, security, accessibility, and API-contract reviews.
+
+Verification: clean-clone setup succeeds against local PostgreSQL, Redis, and Ollama; all acceptance criteria below pass.
+
+## 16. Test Strategy
+
+### Unit tests
+
+- Auth token issuance, rotation, revocation, and cookie options.
+- Chat authorization and anonymous transfer rules.
+- Ollama allowlist and response translation.
+- SSE frame encoder/parser.
+- Redis history serialization and malformed-cache recovery.
+- Token metadata mapping.
+
+### API integration tests
+
+- Use an isolated PostgreSQL test database and Redis instance.
+- Apply real Prisma migrations before tests.
+- Mock Ollama at the HTTP boundary with streamed NDJSON chunks and controlled failures.
+- Test controller, validation, guards, CSRF, cookies, transactions, and stream termination.
+
+### Frontend tests
+
+- Component tests for composer, transcript, model selector, and auth forms.
+- Mock Service Worker for REST and streamed-response fixtures where practical.
+- Test incremental rendering, cancellation, failure recovery, and accessibility states.
+
+### End-to-end tests
+
+- Anonymous first chat and follow-up with history.
+- Sign-up and ownership transfer.
+- Sign-in, refresh, sign-out, and multi-device revocation.
+- Select a configured Ollama model and stream a response.
+- Reject a disallowed or uninstalled model.
+- Redis unavailable with PostgreSQL fallback.
+- Browser disconnect during generation.
+
+## 17. Acceptance Criteria
+
+- `pnpm dev` runs the React and NestJS applications through Turborepo.
+- No UI component library other than Tailwind CSS is introduced.
+- All persisted primary keys are UUIDv7-backed PostgreSQL UUID columns.
+- Prisma migrations reproduce the schema on an empty database.
+- Swagger documents and exercises non-streaming APIs.
+- Users can sign up, sign in, refresh, sign out, sign out everywhere, and revoke an individual device session.
+- Access and refresh JWTs are inaccessible to frontend JavaScript.
+- Anonymous users can create persistent chats and continue them using their anonymous cookie.
+- Anonymous chats transfer to the user on authentication without becoming accessible to another account.
+- The model selector only shows installed models permitted by `OLLAMA_ALLOWED_MODELS`.
+- A prompt is sent to NestJS and the Ollama response is visibly streamed to the SPA using SSE framing.
+- Each follow-up sends the complete ordered completed history to Ollama.
+- PostgreSQL remains the source of truth; deleting Redis data does not lose chats.
+- Redis stores each cached conversation under its chat UUID with a serialized text value containing the full LLM history.
+- Every message records role, content, model where applicable, status, and transparent token metadata.
+- Concurrent generation in the same chat is rejected or serialized safely.
+- Cancelling or disconnecting aborts the Ollama request and leaves a consistent message record.
+- Tests cover authorization boundaries, refresh rotation, cache fallback, stream success, stream error, and stream cancellation.
+
+## 18. Explicitly Deferred
+
+- Docker Compose or containerized local infrastructure.
+- Cloud deployment and hosted model providers.
+- Retrieval-augmented generation, embeddings, tools, and file uploads.
+- Team workspaces and chat sharing.
+- Message editing, branching, and regeneration.
+- Voice, images, and multimodal input.
+- Automatic summarization of context beyond the configured history limit.
+
+## 19. Official References
+
+- NestJS Server-Sent Events: <https://docs.nestjs.com/techniques/server-sent-events>
+- Ollama chat API and token metadata: <https://docs.ollama.com/api/chat>
+- Ollama installed-model listing: <https://docs.ollama.com/api/tags>
+- Prisma schema reference for `uuid(7)` and PostgreSQL `@db.Uuid`: <https://www.prisma.io/docs/orm/reference/prisma-schema-reference#uuid>
+- Browser `EventSource` API constraints: <https://developer.mozilla.org/en-US/docs/Web/API/EventSource>
