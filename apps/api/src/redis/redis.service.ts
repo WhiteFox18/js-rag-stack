@@ -7,6 +7,13 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createClient } from 'redis';
 import type { AppEnvironment } from '../config/environment.schema';
+import { getErrorMessage } from '../common/utils/error';
+import type {
+  ExtendIfValueMatchesParams,
+  MatchValueParams,
+  SetIfAbsentParams,
+  SetWithTtlParams,
+} from './redis.types';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnApplicationShutdown {
@@ -59,20 +66,20 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
     return this.client.get(key);
   }
 
-  async setWithTtl(
-    key: string,
-    value: string,
-    ttlSeconds: number,
-  ): Promise<void> {
+  async setWithTtl({
+    key,
+    value,
+    ttlSeconds,
+  }: SetWithTtlParams): Promise<void> {
     await this.ensureConnected();
     await this.client.set(key, value, { EX: ttlSeconds });
   }
 
-  async setIfAbsent(
-    key: string,
-    value: string,
-    ttlMs: number,
-  ): Promise<boolean> {
+  async setIfAbsent({
+    key,
+    value,
+    ttlMs,
+  }: SetIfAbsentParams): Promise<boolean> {
     await this.ensureConnected();
     const result = await this.client.set(key, value, { NX: true, PX: ttlMs });
     return result === 'OK';
@@ -83,7 +90,10 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
     await this.client.del(key);
   }
 
-  async deleteIfValueMatches(key: string, value: string): Promise<boolean> {
+  async deleteIfValueMatches({
+    key,
+    value,
+  }: MatchValueParams): Promise<boolean> {
     await this.ensureConnected();
     const result = await this.client.eval(
       `
@@ -97,11 +107,11 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
     return result === 1;
   }
 
-  async extendIfValueMatches(
-    key: string,
-    value: string,
-    ttlMs: number,
-  ): Promise<boolean> {
+  async extendIfValueMatches({
+    key,
+    value,
+    ttlMs,
+  }: ExtendIfValueMatchesParams): Promise<boolean> {
     await this.ensureConnected();
     const result = await this.client.eval(
       `
@@ -131,8 +141,4 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
 
     await this.connectionAttempt;
   }
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown error';
 }

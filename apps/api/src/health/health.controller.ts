@@ -4,7 +4,8 @@ import type { Response } from 'express';
 import type { HealthResponse } from '@js-rag-stack/contracts';
 import { HealthResponseDto } from './models/health-response.dto';
 import { ReadinessResponseDto } from './models/readiness-response.dto';
-import { HealthService, type ReadinessResponse } from './health.service';
+import { HealthService } from './health.service';
+import type { ReadinessResponse } from './health.types';
 
 @ApiTags('health')
 @Controller('health')

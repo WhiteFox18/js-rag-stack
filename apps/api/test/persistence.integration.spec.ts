@@ -2,18 +2,19 @@ import { randomBytes } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { NotFoundException } from '@nestjs/common';
 import type { Response } from 'express';
-import {
-  AnonymousSessionsService,
-  hashToken,
-} from '../src/anonymous-sessions/anonymous-sessions.service';
+import { hashAnonymousToken } from '../src/anonymous-sessions/anonymous-sessions.helpers';
+import { AnonymousSessionsRepository } from '../src/anonymous-sessions/anonymous-sessions.repository';
+import { AnonymousSessionsService } from '../src/anonymous-sessions/anonymous-sessions.service';
 import { ChatHistoryService } from '../src/chats/chat-history.service';
 import { ChatOwnershipService } from '../src/chats/chat-ownership.service';
+import { ChatsRepository } from '../src/chats/chats.repository';
 import { RedisLockService } from '../src/chats/redis-lock.service';
 import {
   type AppEnvironment,
   validateEnvironment,
 } from '../src/config/environment.schema';
 import { HealthService } from '../src/health/health.service';
+import { HealthRepository } from '../src/health/health.repository';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { RedisService } from '../src/redis/redis.service';
 
@@ -42,10 +43,15 @@ describe('persistence foundation', () => {
     prisma = new PrismaService(config);
     redis = new RedisService(config);
     locks = new RedisLockService(redis, config);
-    anonymous_sessions = new AnonymousSessionsService(prisma, config);
-    ownership = new ChatOwnershipService(prisma);
-    history = new ChatHistoryService(prisma, redis, locks, config);
-    health = new HealthService(prisma, redis);
+    const anonymousRepository = new AnonymousSessionsRepository(prisma);
+    const chatsRepository = new ChatsRepository(prisma);
+    anonymous_sessions = new AnonymousSessionsService(
+      anonymousRepository,
+      config,
+    );
+    ownership = new ChatOwnershipService(chatsRepository);
+    history = new ChatHistoryService(chatsRepository, redis, locks, config);
+    health = new HealthService(new HealthRepository(prisma), redis);
 
     await prisma.onModuleInit();
     await redis.onModuleInit();
@@ -93,16 +99,22 @@ describe('persistence foundation', () => {
       },
     });
 
-    const owned_chat = await ownership.findOwnedChat(chat.id, {
-      type: 'anonymous',
-      anonymous_session_id: owner.id,
+    const owned_chat = await ownership.findOwnedChat({
+      chatId: chat.id,
+      principal: {
+        type: 'anonymous',
+        anonymous_session_id: owner.id,
+      },
     });
     expect(owned_chat.anonymous_session_id).toBe(owner.id);
 
     await expect(
-      ownership.findOwnedChat(chat.id, {
-        type: 'anonymous',
-        anonymous_session_id: other.id,
+      ownership.findOwnedChat({
+        chatId: chat.id,
+        principal: {
+          type: 'anonymous',
+          anonymous_session_id: other.id,
+        },
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
@@ -127,7 +139,7 @@ describe('persistence foundation', () => {
     const stored_session = await prisma.anonymousSession.findUniqueOrThrow({
       where: { id: principal.anonymous_session_id },
     });
-    expect(stored_session.token_hash).toBe(hashToken(cookie_call[1]));
+    expect(stored_session.token_hash).toBe(hashAnonymousToken(cookie_call[1]));
     expect(stored_session.token_hash).not.toBe(cookie_call[1]);
   });
 
@@ -135,7 +147,7 @@ describe('persistence foundation', () => {
     const raw_token = randomBytes(32).toString('base64url');
     const session = await prisma.anonymousSession.create({
       data: {
-        token_hash: hashToken(raw_token),
+        token_hash: hashAnonymousToken(raw_token),
         expires_at: new Date(Date.now() - 1_000),
       },
     });
@@ -189,7 +201,11 @@ describe('persistence foundation', () => {
     await history.invalidate(chat.id);
     await expect(history.getHistory(chat.id)).resolves.toHaveLength(2);
 
-    await redis.setWithTtl(chat.id, '{malformed', 60);
+    await redis.setWithTtl({
+      key: chat.id,
+      value: '{malformed',
+      ttlSeconds: 60,
+    });
     await expect(history.getHistory(chat.id)).resolves.toEqual([
       { role: 'user', content: 'Hello' },
       {
@@ -208,9 +224,12 @@ describe('persistence foundation', () => {
         token_count_source: 'ESTIMATED',
       },
     });
-    await history.append(chat.id, {
-      role: 'user',
-      content: 'Cached follow-up',
+    await history.append({
+      chatId: chat.id,
+      entry: {
+        role: 'user',
+        content: 'Cached follow-up',
+      },
     });
     await expect(redis.get(chat.id)).resolves.toBe(
       JSON.stringify([
@@ -228,13 +247,13 @@ describe('persistence foundation', () => {
   it('does not allow two holders of the same Redis lock', async () => {
     const key = `test-lock:${randomBytes(12).toString('hex')}`;
     redis_keys.add(key);
-    const first = await locks.acquire(key, 5_000);
+    const first = await locks.acquire({ key, ttlMs: 5_000 });
     expect(first).toBeDefined();
     await expect(first?.extend(10_000)).resolves.toBe(true);
-    await expect(locks.acquire(key, 5_000)).resolves.toBeUndefined();
+    await expect(locks.acquire({ key, ttlMs: 5_000 })).resolves.toBeUndefined();
     await expect(first?.release()).resolves.toBe(true);
 
-    const next = await locks.acquire(key, 5_000);
+    const next = await locks.acquire({ key, ttlMs: 5_000 });
     expect(next).toBeDefined();
     await next?.release();
   });

@@ -1,7 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import type { RequestPrincipal } from '../common/models/request-principal';
 import { AnonymousSessionsService } from './anonymous-sessions.service';
+import type { EnsureAnonymousPrincipalParams } from './anonymous-sessions.types';
 
 @Injectable()
 export class RequestPrincipalService {
@@ -15,10 +16,10 @@ export class RequestPrincipalService {
     return request.principal;
   }
 
-  async ensureAnonymous(
-    request: Request,
-    response: Response,
-  ): Promise<RequestPrincipal> {
+  async ensureAnonymous({
+    request,
+    response,
+  }: EnsureAnonymousPrincipalParams): Promise<RequestPrincipal> {
     if (request.principal) {
       return request.principal;
     }

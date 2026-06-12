@@ -25,4 +25,15 @@ describe('validateEnvironment', () => {
       'Invalid environment',
     );
   });
+
+  it('rejects placeholder security secrets in production', () => {
+    expect(() =>
+      validateEnvironment({
+        NODE_ENV: 'production',
+        JWT_ACCESS_SECRET: 'replace-with-at-least-32-random-bytes',
+        JWT_REFRESH_SECRET: 'replace-with-a-different-32-byte-secret',
+        CSRF_SECRET: 'replace-with-at-least-32-random-bytes',
+      }),
+    ).toThrow('must be replaced in production');
+  });
 });

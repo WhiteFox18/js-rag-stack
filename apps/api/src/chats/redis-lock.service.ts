@@ -3,20 +3,32 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppEnvironment } from '../config/environment.schema';
 import { RedisService } from '../redis/redis.service';
+import type { AcquireRedisLockParams, RedisLockParams } from './chats.types';
 
 export class RedisLock {
-  constructor(
-    private readonly redis: RedisService,
-    readonly key: string,
-    private readonly token: string,
-  ) {}
+  private readonly redis: RedisService;
+  readonly key: string;
+  private readonly token: string;
+
+  constructor({ redis, key, token }: RedisLockParams) {
+    this.redis = redis;
+    this.key = key;
+    this.token = token;
+  }
 
   async release(): Promise<boolean> {
-    return this.redis.deleteIfValueMatches(this.key, this.token);
+    return this.redis.deleteIfValueMatches({
+      key: this.key,
+      value: this.token,
+    });
   }
 
   async extend(ttlMs: number): Promise<boolean> {
-    return this.redis.extendIfValueMatches(this.key, this.token, ttlMs);
+    return this.redis.extendIfValueMatches({
+      key: this.key,
+      value: this.token,
+      ttlMs,
+    });
   }
 }
 
@@ -31,16 +43,18 @@ export class RedisLockService {
     this.default_ttl_ms = config.get('REDIS_LOCK_TTL_MS', { infer: true });
   }
 
-  async acquire(
-    key: string,
-    ttl_ms = this.default_ttl_ms,
-  ): Promise<RedisLock | undefined> {
+  async acquire({
+    key,
+    ttlMs = this.default_ttl_ms,
+  }: AcquireRedisLockParams): Promise<RedisLock | undefined> {
     const token = randomBytes(24).toString('base64url');
-    const acquired = await this.redis.setIfAbsent(key, token, ttl_ms);
-    return acquired ? new RedisLock(this.redis, key, token) : undefined;
+    const acquired = await this.redis.setIfAbsent({ key, value: token, ttlMs });
+    return acquired
+      ? new RedisLock({ redis: this.redis, key, token })
+      : undefined;
   }
 
   acquireGenerationLock(chat_id: string): Promise<RedisLock | undefined> {
-    return this.acquire(`generation-lock:${chat_id}`);
+    return this.acquire({ key: `generation-lock:${chat_id}` });
   }
 }

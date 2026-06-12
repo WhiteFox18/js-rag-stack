@@ -1,23 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { RequestPrincipal } from '../common/models/request-principal';
 import type { Chat } from '../generated/prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { ChatsRepository } from './chats.repository';
+import type { FindOwnedChatParams } from './chats.types';
 
 @Injectable()
 export class ChatOwnershipService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repository: ChatsRepository) {}
 
-  async findOwnedChat(
-    chat_id: string,
-    principal: RequestPrincipal,
-  ): Promise<Chat> {
-    const owner_filter =
-      principal.type === 'authenticated'
-        ? { user_id: principal.user_id }
-        : { anonymous_session_id: principal.anonymous_session_id };
-    const chat = await this.prisma.chat.findFirst({
-      where: { id: chat_id, ...owner_filter },
-    });
+  async findOwnedChat({
+    chatId,
+    principal,
+  }: FindOwnedChatParams): Promise<Chat> {
+    const chat = await this.repository.findOwnedChat({ chatId, principal });
 
     if (!chat) {
       throw new NotFoundException('Chat not found.');

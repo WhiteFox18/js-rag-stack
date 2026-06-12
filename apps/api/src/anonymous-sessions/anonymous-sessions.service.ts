@@ -1,42 +1,43 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import type { AppEnvironment } from '../config/environment.schema';
 import type { AnonymousPrincipal } from '../common/models/request-principal';
-import { PrismaService } from '../prisma/prisma.service';
+import { parseDurationMs } from '../common/utils/duration';
+import { hashAnonymousToken } from './anonymous-sessions.helpers';
+import { AnonymousSessionsRepository } from './anonymous-sessions.repository';
+import type { InvalidateAnonymousSessionParams } from './anonymous-sessions.types';
 
 @Injectable()
 export class AnonymousSessionsService {
-  readonly cookie_name = 'anonymous_session';
-  private readonly ttl_ms: number;
+  readonly cookieName = 'anonymous_session';
+  private readonly ttlMs: number;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repository: AnonymousSessionsRepository,
     private readonly config: ConfigService<AppEnvironment, true>,
   ) {
-    this.ttl_ms = parseDurationMs(
+    this.ttlMs = parseDurationMs(
       config.get('ANONYMOUS_SESSION_TTL', { infer: true }),
     );
   }
 
   async create(response: Response): Promise<AnonymousPrincipal> {
-    const raw_token = randomBytes(32).toString('base64url');
-    const expires_at = new Date(Date.now() + this.ttl_ms);
-    const session = await this.prisma.anonymousSession.create({
-      data: {
-        token_hash: hashToken(raw_token),
-        expires_at,
-      },
+    const rawToken = randomBytes(32).toString('base64url');
+    const expiresAt = new Date(Date.now() + this.ttlMs);
+    const session = await this.repository.create({
+      tokenHash: hashAnonymousToken(rawToken),
+      expiresAt,
     });
 
-    response.cookie(this.cookie_name, raw_token, {
+    response.cookie(this.cookieName, rawToken, {
       httpOnly: true,
       secure: this.config.get('COOKIE_SECURE', { infer: true }),
       sameSite: this.config.get('COOKIE_SAME_SITE', { infer: true }),
       domain: this.config.get('COOKIE_DOMAIN', { infer: true }),
       path: '/',
-      expires: expires_at,
+      expires: expiresAt,
     });
 
     return {
@@ -46,25 +47,20 @@ export class AnonymousSessionsService {
   }
 
   async resolvePrincipal(
-    raw_token: string,
+    rawToken: string,
   ): Promise<AnonymousPrincipal | undefined> {
-    const token_hash = hashToken(raw_token);
+    const tokenHash = hashAnonymousToken(rawToken);
     const now = new Date();
-    const session = await this.prisma.anonymousSession.findFirst({
-      where: {
-        token_hash,
-        expires_at: { gt: now },
-      },
+    const session = await this.repository.findActiveByTokenHash({
+      tokenHash,
+      now,
     });
 
     if (!session) {
       return undefined;
     }
 
-    await this.prisma.anonymousSession.update({
-      where: { id: session.id },
-      data: { last_seen_at: now },
-    });
+    await this.repository.touch({ sessionId: session.id, now });
 
     return {
       type: 'anonymous',
@@ -72,14 +68,16 @@ export class AnonymousSessionsService {
     };
   }
 
-  async invalidate(
-    anonymous_session_id: string,
-    response: Response,
-  ): Promise<void> {
-    await this.prisma.anonymousSession.deleteMany({
-      where: { id: anonymous_session_id },
-    });
-    response.clearCookie(this.cookie_name, {
+  async invalidate({
+    anonymousSessionId,
+    response,
+  }: InvalidateAnonymousSessionParams): Promise<void> {
+    await this.repository.delete(anonymousSessionId);
+    this.clearCookie(response);
+  }
+
+  clearCookie(response: Response): void {
+    response.clearCookie(this.cookieName, {
       httpOnly: true,
       secure: this.config.get('COOKIE_SECURE', { infer: true }),
       sameSite: this.config.get('COOKIE_SAME_SITE', { infer: true }),
@@ -87,21 +85,4 @@ export class AnonymousSessionsService {
       path: '/',
     });
   }
-}
-
-export function hashToken(raw_token: string): string {
-  return createHash('sha256').update(raw_token).digest('hex');
-}
-
-function parseDurationMs(value: string): number {
-  const match = /^(\d+)([dhm])$/.exec(value);
-
-  if (!match) {
-    throw new Error(`Unsupported duration: ${value}`);
-  }
-
-  const amount = Number(match[1]);
-  const unit = match[2];
-  const unit_ms = unit === 'd' ? 86_400_000 : unit === 'h' ? 3_600_000 : 60_000;
-  return amount * unit_ms;
 }

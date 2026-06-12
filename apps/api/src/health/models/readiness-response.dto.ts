@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import type { ReadinessResponse } from '../health.service';
+import type { ReadinessResponse } from '../health.types';
 
 type DependencyChecks = ReadinessResponse['checks'];
 

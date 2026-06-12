@@ -27,7 +27,7 @@ enum TokenCountSource {
 }
 
 model User {
-  id            String        @id @default(uuid(7)) @db.Uuid
+  id            String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
   email         String        @unique @db.VarChar(320)
   password_hash String        @db.Text
   display_name  String?       @db.VarChar(100)
@@ -38,7 +38,7 @@ model User {
 }
 
 model AnonymousSession {
-  id           String   @id @default(uuid(7)) @db.Uuid
+  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   token_hash   String   @unique @db.Char(64)
   expires_at   DateTime @db.Timestamptz(3)
   created_at   DateTime @default(now()) @db.Timestamptz(3)
@@ -49,10 +49,10 @@ model AnonymousSession {
 }
 
 model AuthSession {
-  id                     String       @id @default(uuid(7)) @db.Uuid
+  id                     String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
   user_id                String       @db.Uuid
   refresh_token_hash     String       @unique @db.Char(64)
-  refresh_jti            String       @unique @db.Uuid
+  refresh_jti            String       @unique @default(dbgenerated("uuidv7()")) @db.Uuid
   user_agent             String?      @db.VarChar(512)
   ip_hash                String?      @db.Char(64)
   expires_at             DateTime     @db.Timestamptz(3)
@@ -70,7 +70,7 @@ model AuthSession {
 }
 
 model Chat {
-  id                   String            @id @default(uuid(7)) @db.Uuid
+  id                   String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
   user_id              String?           @db.Uuid
   anonymous_session_id String?           @db.Uuid
   title                String            @db.VarChar(200)
@@ -88,7 +88,7 @@ model Chat {
 }
 
 model Message {
-  id                 String           @id @default(uuid(7)) @db.Uuid
+  id                 String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   chat_id            String           @db.Uuid
   role               MessageRole
   status             MessageStatus
