@@ -7,7 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ChatOwnershipService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async find_owned_chat(
+  async findOwnedChat(
     chat_id: string,
     principal: RequestPrincipal,
   ): Promise<Chat> {

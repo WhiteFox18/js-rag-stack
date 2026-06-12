@@ -15,7 +15,7 @@ export class AnonymousSessionsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppEnvironment, true>,
   ) {
-    this.ttl_ms = parse_duration_ms(
+    this.ttl_ms = parseDurationMs(
       config.get('ANONYMOUS_SESSION_TTL', { infer: true }),
     );
   }
@@ -25,7 +25,7 @@ export class AnonymousSessionsService {
     const expires_at = new Date(Date.now() + this.ttl_ms);
     const session = await this.prisma.anonymousSession.create({
       data: {
-        token_hash: hash_token(raw_token),
+        token_hash: hashToken(raw_token),
         expires_at,
       },
     });
@@ -45,10 +45,10 @@ export class AnonymousSessionsService {
     };
   }
 
-  async resolve_principal(
+  async resolvePrincipal(
     raw_token: string,
   ): Promise<AnonymousPrincipal | undefined> {
-    const token_hash = hash_token(raw_token);
+    const token_hash = hashToken(raw_token);
     const now = new Date();
     const session = await this.prisma.anonymousSession.findFirst({
       where: {
@@ -89,11 +89,11 @@ export class AnonymousSessionsService {
   }
 }
 
-export function hash_token(raw_token: string): string {
+export function hashToken(raw_token: string): string {
   return createHash('sha256').update(raw_token).digest('hex');
 }
 
-function parse_duration_ms(value: string): number {
+function parseDurationMs(value: string): number {
   const match = /^(\d+)([dhm])$/.exec(value);
 
   if (!match) {

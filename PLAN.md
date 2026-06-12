@@ -131,19 +131,19 @@ inputs and returned database records also expose `snake_case` properties.
 
 - `id`
 - `email` - normalized lowercase and unique.
-- `passwordHash`
-- `displayName` - optional.
-- `createdAt`
-- `updatedAt`
+- `password_hash`
+- `display_name` - optional.
+- `created_at`
+- `updated_at`
 - Relations to chats and refresh sessions.
 
 ### AnonymousSession
 
 - `id`
-- `tokenHash` - unique; never store the raw cookie token.
-- `expiresAt`
-- `createdAt`
-- `lastSeenAt`
+- `token_hash` - unique; never store the raw cookie token.
+- `expires_at`
+- `created_at`
+- `last_seen_at`
 - Relation to chats.
 
 The raw high-entropy anonymous token is stored only in an HttpOnly cookie. An expired session cannot access its chats.
@@ -151,64 +151,70 @@ The raw high-entropy anonymous token is stored only in an HttpOnly cookie. An ex
 ### AuthSession
 
 - `id`
-- `userId`
-- `refreshTokenHash`
-- `refreshJti` - unique UUIDv7 JWT ID.
-- `userAgent` - optional, truncated.
-- `ipHash` - optional; do not retain raw IP solely for session display.
-- `expiresAt`
-- `revokedAt` - optional.
-- `replacedBySessionId` - optional, for rotation lineage.
-- `createdAt`
-- `lastUsedAt`
-- Indexes on `userId`, `refreshJti`, and `expiresAt`.
+- `user_id`
+- `refresh_token_hash`
+- `refresh_jti` - unique UUIDv7 JWT ID.
+- `user_agent` - optional, truncated.
+- `ip_hash` - optional; do not retain raw IP solely for session display.
+- `expires_at`
+- `revoked_at` - optional.
+- `replaced_by_session_id` - optional, for rotation lineage.
+- `created_at`
+- `last_used_at`
+- Indexes on `user_id`, `refresh_jti`, and `expires_at`.
 
 Each browser/device has its own session. Refresh rotates the token and session record atomically. Reuse of a revoked refresh token revokes its rotation family.
 
 ### Chat
 
 - `id`
-- `userId` - nullable.
-- `anonymousSessionId` - nullable.
+- `user_id` - nullable.
+- `anonymous_session_id` - nullable.
 - `title` - initially derived from the first user prompt and editable later.
-- `selectedModel` - the allowed model selected for the chat.
-- `createdAt`
-- `updatedAt`
-- `lastMessageAt`
-- `archivedAt` - optional.
+- `selected_model` - the allowed model selected for the chat.
+- `created_at`
+- `updated_at`
+- `last_message_at`
+- `archived_at` - optional.
 - Relations to messages.
-- Indexes on `(userId, lastMessageAt)` and `(anonymousSessionId, lastMessageAt)`.
+- Indexes on `(user_id, last_message_at)` and
+  `(anonymous_session_id, last_message_at)`.
 
-Application validation enforces exactly one owner: `userId` or `anonymousSessionId`. Add a SQL check constraint in the migration because Prisma schema syntax does not model this constraint directly.
+Application validation enforces exactly one owner: `user_id` or
+`anonymous_session_id`. Add a SQL check constraint in the migration because
+Prisma schema syntax does not model this constraint directly.
 
 ### Message
 
 - `id`
-- `chatId`
+- `chat_id`
 - `role` - `USER` or `ASSISTANT`.
 - `status` - `STREAMING`, `COMPLETED`, `FAILED`, or `CANCELLED`.
 - `content` - PostgreSQL `text`.
 - `model` - nullable for user messages; required for assistant messages.
-- `tokenCount` - tokens attributable to this message.
-- `tokenCountSource` - `OLLAMA_REPORTED`, `ESTIMATED`, or `UNKNOWN`.
-- `promptTokens` - nullable; full context tokens reported for the assistant generation.
-- `completionTokens` - nullable; generated tokens reported by Ollama.
-- `totalTokens` - nullable.
-- `finishReason` - optional.
-- `errorCode` - optional sanitized internal classification.
-- `createdAt`
-- `updatedAt`
-- Index on `(chatId, createdAt, id)` for deterministic history ordering.
+- `token_count` - tokens attributable to this message.
+- `token_count_source` - `OLLAMA_REPORTED`, `ESTIMATED`, or `UNKNOWN`.
+- `prompt_tokens` - nullable; full context tokens reported for the assistant generation.
+- `completion_tokens` - nullable; generated tokens reported by Ollama.
+- `total_tokens` - nullable.
+- `finish_reason` - optional.
+- `error_code` - optional sanitized internal classification.
+- `created_at`
+- `updated_at`
+- Index on `(chat_id, created_at, id)` for deterministic history ordering.
 
 Ollama reports prompt tokens for the entire request and completion tokens for the response. Therefore:
 
-- Assistant `completionTokens` and `tokenCount` use Ollama's final `eval_count`.
-- Assistant `promptTokens` uses `prompt_eval_count`.
-- User `tokenCount` is an estimate and is explicitly marked `ESTIMATED`; do not present it as exact.
+- Assistant `completion_tokens` and `token_count` use Ollama's final
+  `eval_count`.
+- Assistant `prompt_tokens` uses `prompt_eval_count`.
+- User `token_count` is an estimate and is explicitly marked `ESTIMATED`; do
+  not present it as exact.
 
 ## 6. Ownership and Anonymous-Chat Transfer
 
-Every chat endpoint resolves a `RequestPrincipal` containing either an authenticated `userId` or a valid `anonymousSessionId`.
+Every chat endpoint resolves a `RequestPrincipal` containing either an
+authenticated `user_id` or a valid `anonymous_session_id`.
 
 - On the first anonymous mutation, create an anonymous session and set its opaque cookie.
 - A chat is readable or writable only by its current owner.
@@ -461,6 +467,8 @@ Use a stable API error envelope outside the SSE route:
 Verification: one command starts both apps; SPA displays live API health; all root quality commands pass.
 
 ### Phase 2 - Persistence and ownership foundation
+
+**Status: Complete (June 12, 2026).**
 
 - Configure Prisma and PostgreSQL.
 - Implement the full schema and initial migration, including UUIDv7 and ownership check constraints.

@@ -12,11 +12,11 @@ export class RedisLock {
   ) {}
 
   async release(): Promise<boolean> {
-    return this.redis.delete_if_value_matches(this.key, this.token);
+    return this.redis.deleteIfValueMatches(this.key, this.token);
   }
 
-  async extend(ttl_ms: number): Promise<boolean> {
-    return this.redis.extend_if_value_matches(this.key, this.token, ttl_ms);
+  async extend(ttlMs: number): Promise<boolean> {
+    return this.redis.extendIfValueMatches(this.key, this.token, ttlMs);
   }
 }
 
@@ -36,11 +36,11 @@ export class RedisLockService {
     ttl_ms = this.default_ttl_ms,
   ): Promise<RedisLock | undefined> {
     const token = randomBytes(24).toString('base64url');
-    const acquired = await this.redis.set_if_absent(key, token, ttl_ms);
+    const acquired = await this.redis.setIfAbsent(key, token, ttl_ms);
     return acquired ? new RedisLock(this.redis, key, token) : undefined;
   }
 
-  acquire_generation_lock(chat_id: string): Promise<RedisLock | undefined> {
+  acquireGenerationLock(chat_id: string): Promise<RedisLock | undefined> {
     return this.acquire(`generation-lock:${chat_id}`);
   }
 }

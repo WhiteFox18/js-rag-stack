@@ -15,8 +15,7 @@ export class RequestPrincipalMiddleware implements NestMiddleware {
     const token = cookies?.[this.anonymous_sessions.cookie_name];
 
     if (typeof token === 'string') {
-      request.principal =
-        await this.anonymous_sessions.resolve_principal(token);
+      request.principal = await this.anonymous_sessions.resolvePrincipal(token);
     }
 
     next();

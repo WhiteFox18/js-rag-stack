@@ -12,7 +12,7 @@ import type { AppEnvironment } from '../config/environment.schema';
 export class RedisService implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger(RedisService.name);
   private readonly client: ReturnType<typeof createClient>;
-  private connection_attempt: Promise<void> | undefined;
+  private connectionAttempt: Promise<void> | undefined;
 
   constructor(config: ConfigService<AppEnvironment, true>) {
     this.client = createClient({
@@ -29,16 +29,16 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
     });
   }
 
-  get is_ready(): boolean {
+  get isReady(): boolean {
     return this.client.isReady;
   }
 
   async onModuleInit(): Promise<void> {
     try {
-      await this.ensure_connected();
+      await this.ensureConnected();
     } catch (error) {
       this.logger.warn(
-        `Redis unavailable during startup: ${get_error_message(error)}`,
+        `Redis unavailable during startup: ${getErrorMessage(error)}`,
       );
     }
   }
@@ -50,41 +50,41 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
   }
 
   async ping(): Promise<void> {
-    await this.ensure_connected();
+    await this.ensureConnected();
     await this.client.ping();
   }
 
   async get(key: string): Promise<string | null> {
-    await this.ensure_connected();
+    await this.ensureConnected();
     return this.client.get(key);
   }
 
-  async set_with_ttl(
+  async setWithTtl(
     key: string,
     value: string,
-    ttl_seconds: number,
+    ttlSeconds: number,
   ): Promise<void> {
-    await this.ensure_connected();
-    await this.client.set(key, value, { EX: ttl_seconds });
+    await this.ensureConnected();
+    await this.client.set(key, value, { EX: ttlSeconds });
   }
 
-  async set_if_absent(
+  async setIfAbsent(
     key: string,
     value: string,
-    ttl_ms: number,
+    ttlMs: number,
   ): Promise<boolean> {
-    await this.ensure_connected();
-    const result = await this.client.set(key, value, { NX: true, PX: ttl_ms });
+    await this.ensureConnected();
+    const result = await this.client.set(key, value, { NX: true, PX: ttlMs });
     return result === 'OK';
   }
 
   async delete(key: string): Promise<void> {
-    await this.ensure_connected();
+    await this.ensureConnected();
     await this.client.del(key);
   }
 
-  async delete_if_value_matches(key: string, value: string): Promise<boolean> {
-    await this.ensure_connected();
+  async deleteIfValueMatches(key: string, value: string): Promise<boolean> {
+    await this.ensureConnected();
     const result = await this.client.eval(
       `
         if redis.call('get', KEYS[1]) == ARGV[1] then
@@ -97,12 +97,12 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
     return result === 1;
   }
 
-  async extend_if_value_matches(
+  async extendIfValueMatches(
     key: string,
     value: string,
-    ttl_ms: number,
+    ttlMs: number,
   ): Promise<boolean> {
-    await this.ensure_connected();
+    await this.ensureConnected();
     const result = await this.client.eval(
       `
         if redis.call('get', KEYS[1]) == ARGV[1] then
@@ -110,29 +110,29 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
         end
         return 0
       `,
-      { keys: [key], arguments: [value, String(ttl_ms)] },
+      { keys: [key], arguments: [value, String(ttlMs)] },
     );
     return result === 1;
   }
 
-  private async ensure_connected(): Promise<void> {
+  private async ensureConnected(): Promise<void> {
     if (this.client.isReady) {
       return;
     }
 
-    if (!this.connection_attempt) {
-      this.connection_attempt = this.client
+    if (!this.connectionAttempt) {
+      this.connectionAttempt = this.client
         .connect()
         .then(() => undefined)
         .finally(() => {
-          this.connection_attempt = undefined;
+          this.connectionAttempt = undefined;
         });
     }
 
-    await this.connection_attempt;
+    await this.connectionAttempt;
   }
 }
 
-function get_error_message(error: unknown): string {
+function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }

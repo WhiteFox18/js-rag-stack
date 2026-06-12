@@ -4,7 +4,7 @@ import { NotFoundException } from '@nestjs/common';
 import type { Response } from 'express';
 import {
   AnonymousSessionsService,
-  hash_token,
+  hashToken,
 } from '../src/anonymous-sessions/anonymous-sessions.service';
 import { ChatHistoryService } from '../src/chats/chat-history.service';
 import { ChatOwnershipService } from '../src/chats/chat-ownership.service';
@@ -63,7 +63,7 @@ describe('persistence foundation', () => {
   });
 
   it('creates UUIDv7 records and returns snake_case persistence fields', async () => {
-    const session = await create_anonymous_session();
+    const session = await createAnonymousSession();
 
     expect(session.id[14]).toBe('7');
     expect(session.token_hash).toHaveLength(64);
@@ -83,8 +83,8 @@ describe('persistence foundation', () => {
   });
 
   it('isolates anonymous chat ownership', async () => {
-    const owner = await create_anonymous_session();
-    const other = await create_anonymous_session();
+    const owner = await createAnonymousSession();
+    const other = await createAnonymousSession();
     const chat = await prisma.chat.create({
       data: {
         anonymous_session_id: owner.id,
@@ -93,14 +93,14 @@ describe('persistence foundation', () => {
       },
     });
 
-    const owned_chat = await ownership.find_owned_chat(chat.id, {
+    const owned_chat = await ownership.findOwnedChat(chat.id, {
       type: 'anonymous',
       anonymous_session_id: owner.id,
     });
     expect(owned_chat.anonymous_session_id).toBe(owner.id);
 
     await expect(
-      ownership.find_owned_chat(chat.id, {
+      ownership.findOwnedChat(chat.id, {
         type: 'anonymous',
         anonymous_session_id: other.id,
       }),
@@ -122,12 +122,12 @@ describe('persistence foundation', () => {
     );
 
     await expect(
-      anonymous_sessions.resolve_principal(cookie_call[1]),
+      anonymous_sessions.resolvePrincipal(cookie_call[1]),
     ).resolves.toEqual(principal);
     const stored_session = await prisma.anonymousSession.findUniqueOrThrow({
       where: { id: principal.anonymous_session_id },
     });
-    expect(stored_session.token_hash).toBe(hash_token(cookie_call[1]));
+    expect(stored_session.token_hash).toBe(hashToken(cookie_call[1]));
     expect(stored_session.token_hash).not.toBe(cookie_call[1]);
   });
 
@@ -135,19 +135,19 @@ describe('persistence foundation', () => {
     const raw_token = randomBytes(32).toString('base64url');
     const session = await prisma.anonymousSession.create({
       data: {
-        token_hash: hash_token(raw_token),
+        token_hash: hashToken(raw_token),
         expires_at: new Date(Date.now() - 1_000),
       },
     });
     anonymous_session_ids.push(session.id);
 
     await expect(
-      anonymous_sessions.resolve_principal(raw_token),
+      anonymous_sessions.resolvePrincipal(raw_token),
     ).resolves.toBeUndefined();
   });
 
   it('handles history cache miss, hit, invalidation, and malformed values', async () => {
-    const session = await create_anonymous_session();
+    const session = await createAnonymousSession();
     const chat = await prisma.chat.create({
       data: {
         anonymous_session_id: session.id,
@@ -167,7 +167,7 @@ describe('persistence foundation', () => {
       },
     });
 
-    await expect(history.get_history(chat.id)).resolves.toEqual([
+    await expect(history.getHistory(chat.id)).resolves.toEqual([
       { role: 'user', content: 'Hello' },
     ]);
     await expect(redis.get(chat.id)).resolves.toBe(
@@ -185,12 +185,12 @@ describe('persistence foundation', () => {
       },
     });
 
-    await expect(history.get_history(chat.id)).resolves.toHaveLength(1);
+    await expect(history.getHistory(chat.id)).resolves.toHaveLength(1);
     await history.invalidate(chat.id);
-    await expect(history.get_history(chat.id)).resolves.toHaveLength(2);
+    await expect(history.getHistory(chat.id)).resolves.toHaveLength(2);
 
-    await redis.set_with_ttl(chat.id, '{malformed', 60);
-    await expect(history.get_history(chat.id)).resolves.toEqual([
+    await redis.setWithTtl(chat.id, '{malformed', 60);
+    await expect(history.getHistory(chat.id)).resolves.toEqual([
       { role: 'user', content: 'Hello' },
       {
         role: 'assistant',
@@ -246,7 +246,7 @@ describe('persistence foundation', () => {
     });
   });
 
-  async function create_anonymous_session() {
+  async function createAnonymousSession() {
     const session = await prisma.anonymousSession.create({
       data: {
         token_hash: randomBytes(32).toString('hex'),

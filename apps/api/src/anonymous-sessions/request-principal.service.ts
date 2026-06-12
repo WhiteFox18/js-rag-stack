@@ -15,7 +15,7 @@ export class RequestPrincipalService {
     return request.principal;
   }
 
-  async ensure_anonymous(
+  async ensureAnonymous(
     request: Request,
     response: Response,
   ): Promise<RequestPrincipal> {

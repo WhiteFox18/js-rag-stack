@@ -26,14 +26,14 @@ export class HealthController {
   @Get('live')
   @ApiOperation({ summary: 'Report API process liveness' })
   @ApiOkResponse({ type: HealthResponseDto })
-  get_liveness(): HealthResponse {
+  getLiveness(): HealthResponse {
     return this.getHealth();
   }
 
   @Get('ready')
   @ApiOperation({ summary: 'Report PostgreSQL and Redis readiness' })
   @ApiOkResponse({ type: ReadinessResponseDto })
-  async get_readiness(
+  async getReadiness(
     @Res({ passthrough: true }) response: Response,
   ): Promise<ReadinessResponse> {
     const readiness = await this.health.readiness();

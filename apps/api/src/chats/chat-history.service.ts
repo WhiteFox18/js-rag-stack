@@ -36,7 +36,7 @@ export class ChatHistoryService {
     this.ttl_seconds = config.get('REDIS_CHAT_TTL_SECONDS', { infer: true });
   }
 
-  async get_history(chat_id: string): Promise<ChatHistoryEntry[]> {
+  async getHistory(chat_id: string): Promise<ChatHistoryEntry[]> {
     try {
       const cached = await this.redis.get(chat_id);
 
@@ -51,12 +51,12 @@ export class ChatHistoryService {
       }
     } catch (error) {
       this.logger.warn(
-        `History cache read failed for chat ${chat_id}: ${get_error_message(error)}`,
+        `History cache read failed for chat ${chat_id}: ${getErrorMessage(error)}`,
       );
     }
 
-    const history = await this.load_from_database(chat_id);
-    await this.write_cache(chat_id, history);
+    const history = await this.loadFromDatabase(chat_id);
+    await this.writeCache(chat_id, history);
     return history;
   }
 
@@ -67,7 +67,7 @@ export class ChatHistoryService {
       lock = await this.locks.acquire(`history-lock:${chat_id}`, 5_000);
     } catch (error) {
       this.logger.warn(
-        `History cache lock failed for chat ${chat_id}: ${get_error_message(error)}`,
+        `History cache lock failed for chat ${chat_id}: ${getErrorMessage(error)}`,
       );
       return;
     }
@@ -79,14 +79,14 @@ export class ChatHistoryService {
     }
 
     try {
-      const history = await this.get_history(chat_id);
-      await this.write_cache(chat_id, [...history, entry]);
+      const history = await this.getHistory(chat_id);
+      await this.writeCache(chat_id, [...history, entry]);
     } finally {
       try {
         await lock.release();
       } catch (error) {
         this.logger.warn(
-          `History cache lock release failed for chat ${chat_id}: ${get_error_message(error)}`,
+          `History cache lock release failed for chat ${chat_id}: ${getErrorMessage(error)}`,
         );
       }
     }
@@ -97,14 +97,12 @@ export class ChatHistoryService {
       await this.redis.delete(chat_id);
     } catch (error) {
       this.logger.warn(
-        `History cache invalidation failed for chat ${chat_id}: ${get_error_message(error)}`,
+        `History cache invalidation failed for chat ${chat_id}: ${getErrorMessage(error)}`,
       );
     }
   }
 
-  private async load_from_database(
-    chat_id: string,
-  ): Promise<ChatHistoryEntry[]> {
+  private async loadFromDatabase(chat_id: string): Promise<ChatHistoryEntry[]> {
     const messages = await this.prisma.message.findMany({
       where: {
         chat_id,
@@ -130,24 +128,24 @@ export class ChatHistoryService {
     });
   }
 
-  private async write_cache(
+  private async writeCache(
     chat_id: string,
     history: ChatHistoryEntry[],
   ): Promise<void> {
     try {
-      await this.redis.set_with_ttl(
+      await this.redis.setWithTtl(
         chat_id,
         JSON.stringify(history),
         this.ttl_seconds,
       );
     } catch (error) {
       this.logger.warn(
-        `History cache write failed for chat ${chat_id}: ${get_error_message(error)}`,
+        `History cache write failed for chat ${chat_id}: ${getErrorMessage(error)}`,
       );
     }
   }
 }
 
-function get_error_message(error: unknown): string {
+function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }
