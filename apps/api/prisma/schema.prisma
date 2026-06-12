@@ -35,6 +35,8 @@ model User {
   updated_at    DateTime      @updatedAt @db.Timestamptz(3)
   chats         Chat[]        @relation("user_chats")
   auth_sessions AuthSession[] @relation("user_auth_sessions")
+
+  @@map("user")
 }
 
 model AnonymousSession {
@@ -46,6 +48,7 @@ model AnonymousSession {
   chats        Chat[]   @relation("anonymous_session_chats")
 
   @@index([expires_at])
+  @@map("anonymous_session")
 }
 
 model AuthSession {
@@ -67,6 +70,7 @@ model AuthSession {
   @@index([user_id])
   @@index([refresh_jti])
   @@index([expires_at])
+  @@map("auth_session")
 }
 
 model Chat {
@@ -85,6 +89,7 @@ model Chat {
 
   @@index([user_id, last_message_at])
   @@index([anonymous_session_id, last_message_at])
+  @@map("chat")
 }
 
 model Message {
@@ -106,4 +111,5 @@ model Message {
   chat               Chat             @relation("chat_messages", fields: [chat_id], references: [id], onDelete: Cascade)
 
   @@index([chat_id, created_at, id])
+  @@map("message")
 }
