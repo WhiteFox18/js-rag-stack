@@ -16,8 +16,19 @@ describe('validateEnvironment', () => {
         WEB_ORIGIN: 'http://localhost:5173',
         COOKIE_SECURE: true,
         REDIS_CHAT_TTL_SECONDS: 86_400,
+        OLLAMA_ALLOWED_MODELS: ['qwen2.5:1.5b'],
+        CHAT_MAX_MESSAGE_CHARS: 12_000,
       }),
     );
+  });
+
+  it('requires the default Ollama model to be allowed', () => {
+    expect(() =>
+      validateEnvironment({
+        OLLAMA_ALLOWED_MODELS: 'llama3.2:1b',
+        OLLAMA_DEFAULT_MODEL: 'qwen2.5:1.5b',
+      }),
+    ).toThrow('OLLAMA_DEFAULT_MODEL must be included');
   });
 
   it('rejects an invalid web origin', () => {

@@ -532,6 +532,8 @@ Verification: multi-device sessions work independently; refresh reuse is detecte
 
 ### Phase 4 - Ollama and streamed chat backend
 
+**Status: Implemented (June 14, 2026). Runtime acceptance is pending local PostgreSQL, Redis, and Ollama availability.**
+
 - Implement allowed/installed model discovery.
 - Implement Ollama streaming client and domain service.
 - Implement chat CRUD, history loading, generation locking, persistence lifecycle, SSE framing, cancellation, and token metadata.

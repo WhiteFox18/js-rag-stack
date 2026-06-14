@@ -6,6 +6,8 @@
     "build": "pnpm prisma:generate && nest build",
     "dev": "nest start --watch",
     "lint": "eslint src test",
+    "openapi:generate": "pnpm build && node dist/generate-openapi.js",
+    "openapi:check": "pnpm build && node dist/generate-openapi.js --check",
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:migrate:dev": "prisma migrate dev",

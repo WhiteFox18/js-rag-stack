@@ -7,6 +7,9 @@
     ".": "./dist/index.js"
   },
   "types": "./dist/index.d.ts",
+  "dependencies": {
+    "@js-rag-stack/contracts": "workspace:*"
+  },
   "scripts": {
     "build": "tsc",
     "lint": "eslint src",

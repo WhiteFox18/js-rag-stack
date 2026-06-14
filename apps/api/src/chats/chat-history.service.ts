@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { z } from 'zod';
 import type { AppEnvironment } from '../config/environment.schema';
@@ -80,9 +76,10 @@ export class ChatHistoryService {
     }
 
     if (!lock) {
-      throw new ServiceUnavailableException(
-        'Chat history cache is currently being updated.',
+      this.logger.warn(
+        `History cache update skipped because chat ${chatId} is locked.`,
       );
+      return;
     }
 
     try {
@@ -107,6 +104,11 @@ export class ChatHistoryService {
         `History cache invalidation failed for chat ${chat_id}: ${getErrorMessage(error)}`,
       );
     }
+  }
+
+  async refresh(chat_id: string): Promise<void> {
+    const history = await this.loadFromDatabase(chat_id);
+    await this.writeCache({ chatId: chat_id, history });
   }
 
   private async loadFromDatabase(chat_id: string): Promise<ChatHistoryEntry[]> {

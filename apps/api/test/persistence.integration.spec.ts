@@ -51,7 +51,9 @@ describe('persistence foundation', () => {
     );
     ownership = new ChatOwnershipService(chatsRepository);
     history = new ChatHistoryService(chatsRepository, redis, locks, config);
-    health = new HealthService(new HealthRepository(prisma), redis);
+    health = new HealthService(new HealthRepository(prisma), redis, {
+      ping: () => Promise.resolve(),
+    } as never);
 
     await prisma.onModuleInit();
     await redis.onModuleInit();
@@ -261,7 +263,7 @@ describe('persistence foundation', () => {
   it('reports PostgreSQL and Redis readiness', async () => {
     await expect(health.readiness()).resolves.toEqual({
       status: 'ready',
-      checks: { database: 'up', redis: 'up' },
+      checks: { database: 'up', redis: 'up', ollama: 'up' },
     });
   });
 

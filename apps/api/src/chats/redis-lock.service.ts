@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import type { AppEnvironment } from '../config/environment.schema';
 import { RedisService } from '../redis/redis.service';
 import type { AcquireRedisLockParams, RedisLockParams } from './chats.types';
+import type { AcquirePrincipalGenerationLockParams } from './chats.types';
+import { getPrincipalLockId } from './chats.helpers';
 
 export class RedisLock {
   private readonly redis: RedisService;
@@ -56,5 +58,21 @@ export class RedisLockService {
 
   acquireGenerationLock(chat_id: string): Promise<RedisLock | undefined> {
     return this.acquire({ key: `generation-lock:${chat_id}` });
+  }
+
+  async acquirePrincipalGenerationLock({
+    principal,
+    slots,
+  }: AcquirePrincipalGenerationLockParams): Promise<RedisLock | undefined> {
+    const principalId = getPrincipalLockId(principal);
+
+    for (let slot = 0; slot < slots; slot += 1) {
+      const lock = await this.acquire({
+        key: `principal-generation-lock:${principalId}:${slot}`,
+      });
+      if (lock) return lock;
+    }
+
+    return undefined;
   }
 }

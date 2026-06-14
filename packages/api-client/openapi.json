@@ -1,0 +1,1034 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/auth/csrf": {
+      "get": {
+        "operationId": "AuthController_getCsrf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsrfResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Issue a double-submit CSRF token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sign-up": {
+      "post": {
+        "operationId": "AuthController_signUp",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignUpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create an account and authentication session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sign-in": {
+      "post": {
+        "operationId": "AuthController_signIn",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid email or password"
+          }
+        },
+        "summary": "Authenticate and create a device session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "refresh_token": []
+          }
+        ],
+        "summary": "Rotate the refresh token and session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sign-out": {
+      "post": {
+        "operationId": "AuthController_signOut",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sign-out-all": {
+      "post": {
+        "operationId": "AuthController_signOutAll",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "AuthController_getMe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "operationId": "AuthController_listSessions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SessionResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions/{sessionId}": {
+      "delete": {
+        "operationId": "AuthController_revokeSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/chats": {
+      "post": {
+        "operationId": "ChatsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatSummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a chat for the current principal",
+        "tags": [
+          "chats"
+        ]
+      },
+      "get": {
+        "operationId": "ChatsController_list",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "includeArchived",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List chats owned by the current principal",
+        "tags": [
+          "chats"
+        ]
+      }
+    },
+    "/api/v1/chats/{chatId}": {
+      "get": {
+        "operationId": "ChatsController_get",
+        "parameters": [
+          {
+            "name": "chatId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get chat metadata and a page of messages",
+        "tags": [
+          "chats"
+        ]
+      },
+      "patch": {
+        "operationId": "ChatsController_update",
+        "parameters": [
+          {
+            "name": "chatId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatSummaryDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Rename, archive, or change the future model for a chat",
+        "tags": [
+          "chats"
+        ]
+      },
+      "delete": {
+        "operationId": "ChatsController_delete",
+        "parameters": [
+          {
+            "name": "chatId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "chats"
+        ]
+      }
+    },
+    "/api/v1/chats/{chatId}/messages/stream": {
+      "post": {
+        "operationId": "ChatsController_stream",
+        "parameters": [
+          {
+            "name": "chatId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StreamMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Named SSE events ending in completion, cancellation, or error.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "example": "event: message.delta\ndata: {\"delta\":\"Hello\"}\n\n"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Persist a user message and stream an Ollama response as SSE",
+        "tags": [
+          "chats"
+        ]
+      }
+    },
+    "/api/v1/models": {
+      "get": {
+        "operationId": "ModelsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelsResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ollama is unavailable"
+          }
+        },
+        "summary": "List installed Ollama models permitted by the server allowlist",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "HealthController_getHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Report API process health",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/live": {
+      "get": {
+        "operationId": "HealthController_getLiveness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Report API process liveness",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "operationId": "HealthController_getReadiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Report PostgreSQL, Redis, and Ollama readiness",
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Local LLM Chat API",
+    "description": "HTTP API for the local-first LLM chat application.",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "access_token": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "access_token"
+      },
+      "refresh_token": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "refresh_token"
+      }
+    },
+    "schemas": {
+      "CsrfResponseDto": {
+        "type": "object",
+        "properties": {
+          "csrfToken": {
+            "type": "string",
+            "description": "Send this value in the X-CSRF-Token header."
+          }
+        },
+        "required": [
+          "csrfToken"
+        ]
+      },
+      "SignUpDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 200
+          },
+          "displayName": {
+            "type": "string",
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "AuthUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "email"
+        ]
+      },
+      "AuthResponseDto": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/AuthUserDto"
+          }
+        },
+        "required": [
+          "user"
+        ]
+      },
+      "SignInDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "SessionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userAgent": {
+            "type": "object",
+            "nullable": true
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "current",
+          "createdAt",
+          "lastUsedAt",
+          "expiresAt"
+        ]
+      },
+      "CreateChatDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "example": "qwen2.5:1.5b",
+            "maxLength": 200
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "firstPrompt": {
+            "type": "string",
+            "maxLength": 12000
+          }
+        },
+        "required": [
+          "model"
+        ]
+      },
+      "ChatSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "selectedModel": {
+            "type": "string"
+          },
+          "archivedAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "lastMessageAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "selectedModel",
+          "createdAt",
+          "updatedAt",
+          "lastMessageAt"
+        ]
+      },
+      "ChatPageDto": {
+        "type": "object",
+        "properties": {
+          "chats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatSummaryDto"
+            }
+          },
+          "nextCursor": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "chats"
+        ]
+      },
+      "ChatMessageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "streaming",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "model": {
+            "type": "object",
+            "nullable": true
+          },
+          "tokenCount": {
+            "type": "object",
+            "nullable": true
+          },
+          "tokenCountSource": {
+            "type": "string",
+            "enum": [
+              "ollama_reported",
+              "estimated",
+              "unknown"
+            ]
+          },
+          "promptTokens": {
+            "type": "object",
+            "nullable": true
+          },
+          "completionTokens": {
+            "type": "object",
+            "nullable": true
+          },
+          "totalTokens": {
+            "type": "object",
+            "nullable": true
+          },
+          "finishReason": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "status",
+          "content",
+          "tokenCountSource",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ChatDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "selectedModel": {
+            "type": "string"
+          },
+          "archivedAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "lastMessageAt": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessageDto"
+            }
+          },
+          "nextCursor": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "selectedModel",
+          "createdAt",
+          "updatedAt",
+          "lastMessageAt",
+          "messages"
+        ]
+      },
+      "UpdateChatDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "model": {
+            "type": "string",
+            "example": "qwen2.5:1.5b",
+            "maxLength": 200
+          },
+          "archived": {
+            "type": "boolean"
+          }
+        }
+      },
+      "StreamMessageDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 12000
+          },
+          "model": {
+            "type": "string",
+            "example": "qwen2.5:1.5b",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "ModelDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "qwen2.5:1.5b"
+          },
+          "default": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "default"
+        ]
+      },
+      "ModelsResponseDto": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelDto"
+            }
+          }
+        },
+        "required": [
+          "models"
+        ]
+      },
+      "HealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "service": {
+            "type": "string",
+            "example": "api"
+          },
+          "timestamp": {
+            "type": "string",
+            "example": "2026-06-10T12:00:00.000Z"
+          },
+          "uptimeSeconds": {
+            "type": "number",
+            "example": 42
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "timestamp",
+          "uptimeSeconds"
+        ]
+      },
+      "DependencyChecksDto": {
+        "type": "object",
+        "properties": {
+          "database": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down"
+            ],
+            "example": "up"
+          },
+          "redis": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down"
+            ],
+            "example": "up"
+          },
+          "ollama": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down"
+            ],
+            "example": "up"
+          }
+        },
+        "required": [
+          "database",
+          "redis",
+          "ollama"
+        ]
+      },
+      "ReadinessResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "degraded",
+              "unavailable"
+            ],
+            "example": "ready"
+          },
+          "checks": {
+            "$ref": "#/components/schemas/DependencyChecksDto"
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ]
+      }
+    }
+  }
+}

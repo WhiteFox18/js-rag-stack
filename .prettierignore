@@ -3,5 +3,5 @@ node_modules
 dist
 coverage
 pnpm-lock.yaml
+packages/api-client/openapi.json
 .idea
-

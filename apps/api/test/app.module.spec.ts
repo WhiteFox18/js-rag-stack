@@ -32,6 +32,10 @@ describe('AppModule', () => {
         '/api/v1/auth/me',
         '/api/v1/auth/sessions',
         '/api/v1/auth/sessions/{sessionId}',
+        '/api/v1/models',
+        '/api/v1/chats',
+        '/api/v1/chats/{chatId}',
+        '/api/v1/chats/{chatId}/messages/stream',
       ]),
     );
     expect(document.paths['/api/v1/auth/refresh']?.post?.security).toEqual([

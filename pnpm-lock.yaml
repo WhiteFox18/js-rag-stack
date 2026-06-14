@@ -192,6 +192,10 @@ importers:
         version: 4.1.8(@types/node@25.9.2)(jsdom@29.1.1)(vite@8.0.16(@types/node@25.9.2)(jiti@2.7.0)(terser@5.48.0))
 
   packages/api-client:
+    dependencies:
+      '@js-rag-stack/contracts':
+        specifier: workspace:*
+        version: link:../contracts
     devDependencies:
       '@js-rag-stack/eslint-config':
         specifier: workspace:*

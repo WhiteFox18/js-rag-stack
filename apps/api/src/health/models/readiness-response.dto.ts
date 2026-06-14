@@ -9,11 +9,17 @@ class DependencyChecksDto implements DependencyChecks {
 
   @ApiProperty({ enum: ['up', 'down'], example: 'up' })
   redis!: 'up' | 'down';
+
+  @ApiProperty({ enum: ['up', 'down'], example: 'up' })
+  ollama!: 'up' | 'down';
 }
 
 export class ReadinessResponseDto implements ReadinessResponse {
-  @ApiProperty({ enum: ['ready', 'unavailable'], example: 'ready' })
-  status!: 'ready' | 'unavailable';
+  @ApiProperty({
+    enum: ['ready', 'degraded', 'unavailable'],
+    example: 'ready',
+  })
+  status!: 'ready' | 'degraded' | 'unavailable';
 
   @ApiProperty({ type: DependencyChecksDto })
   checks!: DependencyChecksDto;

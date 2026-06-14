@@ -32,16 +32,16 @@ export class HealthController {
   }
 
   @Get('ready')
-  @ApiOperation({ summary: 'Report PostgreSQL and Redis readiness' })
+  @ApiOperation({ summary: 'Report PostgreSQL, Redis, and Ollama readiness' })
   @ApiOkResponse({ type: ReadinessResponseDto })
   async getReadiness(
     @Res({ passthrough: true }) response: Response,
   ): Promise<ReadinessResponse> {
     const readiness = await this.health.readiness();
     response.status(
-      readiness.status === 'ready'
-        ? HttpStatus.OK
-        : HttpStatus.SERVICE_UNAVAILABLE,
+      readiness.status === 'unavailable'
+        ? HttpStatus.SERVICE_UNAVAILABLE
+        : HttpStatus.OK,
     );
     return readiness;
   }

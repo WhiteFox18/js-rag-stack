@@ -12,6 +12,8 @@ import { ChatsModule } from './chats/chats.module';
 import { CsrfGuard } from './common/guards/csrf.guard';
 import { OriginGuard } from './common/guards/origin.guard';
 import { SecurityModule } from './common/security/security.module';
+import { OllamaModule } from './ollama/ollama.module';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
 @Module({
   imports: [
@@ -26,6 +28,7 @@ import { SecurityModule } from './common/security/security.module';
     RedisModule,
     AnonymousSessionsModule,
     AuthModule,
+    OllamaModule,
     ChatsModule,
     HealthModule,
   ],
@@ -36,6 +39,8 @@ import { SecurityModule } from './common/security/security.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestPrincipalMiddleware).forRoutes('{*path}');
+    consumer
+      .apply(RequestIdMiddleware, RequestPrincipalMiddleware)
+      .forRoutes('{*path}');
   }
 }

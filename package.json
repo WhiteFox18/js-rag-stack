@@ -14,6 +14,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "openapi:generate": "pnpm --filter @js-rag-stack/api openapi:generate",
+    "openapi:check": "pnpm --filter @js-rag-stack/api openapi:check",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
   },
