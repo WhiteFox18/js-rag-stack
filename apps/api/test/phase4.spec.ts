@@ -346,7 +346,9 @@ describe('phase 4 Ollama and SSE contracts', () => {
 
     expect(ollama.assertAllowed).toHaveBeenCalledWith('qwen2.5:1.5b');
     expect(ollama.assertAvailable).not.toHaveBeenCalled();
-    expect(createChat).toHaveBeenCalled();
+    expect(createChat).toHaveBeenCalledWith(
+      expect.objectContaining({ selectedModelId: 'model-qwen2.5:1.5b' }),
+    );
   });
 
   it('reports Ollama downtime as degraded without failing core readiness', async () => {
