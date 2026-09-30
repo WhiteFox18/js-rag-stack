@@ -42,9 +42,11 @@ export class ChatsService {
     ) {
       throw new PayloadTooLargeException('The first prompt is too long.');
     }
-    this.ollama.assertAllowed(params.selectedModel);
+    const model = await this.ollama.assertAllowed(params.selectedModel);
     const chat = await this.repository.createChat({
-      ...params,
+      principal: params.principal,
+      firstPrompt: params.firstPrompt,
+      selectedModelId: model.id,
       title:
         params.title ||
         (params.firstPrompt ? deriveChatTitle(params.firstPrompt) : 'New chat'),
@@ -86,10 +88,17 @@ export class ChatsService {
     }
 
     await this.ownership.findOwnedChat(params);
-    if (params.selectedModel) {
-      this.ollama.assertAllowed(params.selectedModel);
-    }
-    return toChatSummary(await this.repository.updateChat(params));
+    const model = params.selectedModel
+      ? await this.ollama.assertAllowed(params.selectedModel)
+      : undefined;
+    return toChatSummary(
+      await this.repository.updateChat({
+        chatId: params.chatId,
+        title: params.title,
+        archived: params.archived,
+        selectedModelId: model?.id,
+      }),
+    );
   }
 
   async delete(params: {

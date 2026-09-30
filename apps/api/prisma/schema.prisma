@@ -26,6 +26,17 @@ enum TokenCountSource {
   UNKNOWN
 }
 
+model Model {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name        String   @unique @db.VarChar(200)
+  max_context Int
+  created_at  DateTime @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime @updatedAt @db.Timestamptz(3)
+  chats       Chat[]   @relation("model_chats")
+
+  @@map("model")
+}
+
 model User {
   id            String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
   email         String        @unique @db.VarChar(320)
@@ -74,42 +85,60 @@ model AuthSession {
 }
 
 model Chat {
-  id                   String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  user_id              String?           @db.Uuid
-  anonymous_session_id String?           @db.Uuid
-  title                String            @db.VarChar(200)
-  selected_model       String            @db.VarChar(200)
-  created_at           DateTime          @default(now()) @db.Timestamptz(3)
-  updated_at           DateTime          @updatedAt @db.Timestamptz(3)
-  last_message_at      DateTime          @default(now()) @db.Timestamptz(3)
-  archived_at          DateTime?         @db.Timestamptz(3)
-  user                 User?             @relation("user_chats", fields: [user_id], references: [id], onDelete: Cascade)
-  anonymous_session    AnonymousSession? @relation("anonymous_session_chats", fields: [anonymous_session_id], references: [id], onDelete: Cascade)
-  messages             Message[]         @relation("chat_messages")
+  id                   String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  user_id              String?              @db.Uuid
+  anonymous_session_id String?              @db.Uuid
+  title                String               @db.VarChar(200)
+  selected_model_id    String               @db.Uuid
+  created_at           DateTime             @default(now()) @db.Timestamptz(3)
+  updated_at           DateTime             @updatedAt @db.Timestamptz(3)
+  last_message_at      DateTime             @default(now()) @db.Timestamptz(3)
+  archived_at          DateTime?            @db.Timestamptz(3)
+  user                 User?                @relation("user_chats", fields: [user_id], references: [id], onDelete: Cascade)
+  anonymous_session    AnonymousSession?    @relation("anonymous_session_chats", fields: [anonymous_session_id], references: [id], onDelete: Cascade)
+  selected_model       Model                @relation("model_chats", fields: [selected_model_id], references: [id], onDelete: Restrict)
+  messages             Message[]            @relation("chat_messages")
+  conversation_summary ConversationSummary? @relation("chat_conversation_summary")
 
   @@index([user_id, last_message_at])
   @@index([anonymous_session_id, last_message_at])
+  @@index([selected_model_id])
   @@map("chat")
 }
 
 model Message {
-  id                 String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  chat_id            String           @db.Uuid
-  role               MessageRole
-  status             MessageStatus
-  content            String           @db.Text
-  model              String?          @db.VarChar(200)
-  token_count        Int?
-  token_count_source TokenCountSource @default(UNKNOWN)
-  prompt_tokens      Int?
-  completion_tokens  Int?
-  total_tokens       Int?
-  finish_reason      String?          @db.VarChar(100)
-  error_code         String?          @db.VarChar(100)
-  created_at         DateTime         @default(now()) @db.Timestamptz(3)
-  updated_at         DateTime         @updatedAt @db.Timestamptz(3)
-  chat               Chat             @relation("chat_messages", fields: [chat_id], references: [id], onDelete: Cascade)
+  id                     String                @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  chat_id                String                @db.Uuid
+  role                   MessageRole
+  status                 MessageStatus
+  content                String                @db.Text
+  model                  String?               @db.VarChar(200)
+  token_count            Int?
+  token_count_source     TokenCountSource      @default(UNKNOWN)
+  prompt_tokens          Int?
+  completion_tokens      Int?
+  total_tokens           Int?
+  finish_reason          String?               @db.VarChar(100)
+  error_code             String?               @db.VarChar(100)
+  created_at             DateTime              @default(now()) @db.Timestamptz(3)
+  updated_at             DateTime              @updatedAt @db.Timestamptz(3)
+  chat                   Chat                  @relation("chat_messages", fields: [chat_id], references: [id], onDelete: Cascade)
+  conversation_summaries ConversationSummary[] @relation("conversation_summary_through_message")
 
   @@index([chat_id, created_at, id])
   @@map("message")
+}
+
+model ConversationSummary {
+  id                            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  chat_id                       String   @unique @db.Uuid
+  content                       String   @db.Text
+  summarized_through_message_id String   @db.Uuid
+  token_count                   Int
+  created_at                    DateTime @default(now()) @db.Timestamptz(3)
+  updated_at                    DateTime @updatedAt @db.Timestamptz(3)
+  chat                          Chat     @relation("chat_conversation_summary", fields: [chat_id], references: [id], onDelete: Cascade)
+  summarized_through_message    Message  @relation("conversation_summary_through_message", fields: [summarized_through_message_id], references: [id], onDelete: Cascade)
+
+  @@map("conversation_summary")
 }

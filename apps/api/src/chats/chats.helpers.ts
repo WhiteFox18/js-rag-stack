@@ -1,7 +1,8 @@
 import type { ChatMessage, ChatSummary } from '@js-rag-stack/contracts';
-import type { Chat, Message } from '../generated/prisma/client';
+import type { Message } from '../generated/prisma/client';
 import type { RequestPrincipal } from '../common/models/request-principal';
 import { HttpException } from '@nestjs/common';
+import type { ChatWithModel } from './chats.types';
 
 export function getOwnerFilter(
   principal: RequestPrincipal,
@@ -26,11 +27,11 @@ export function deriveChatTitle(content: string): string {
   return normalized.slice(0, 80) || 'New chat';
 }
 
-export function toChatSummary(chat: Chat): ChatSummary {
+export function toChatSummary(chat: ChatWithModel): ChatSummary {
   return {
     id: chat.id,
     title: chat.title,
-    selectedModel: chat.selected_model,
+    selectedModel: chat.selected_model.name,
     archivedAt: chat.archived_at?.toISOString() ?? null,
     createdAt: chat.created_at.toISOString(),
     updatedAt: chat.updated_at.toISOString(),

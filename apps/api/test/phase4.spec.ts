@@ -22,20 +22,45 @@ describe('phase 4 Ollama and SSE contracts', () => {
     jest.restoreAllMocks();
   });
 
-  it('returns only installed models that are allowed', async () => {
+  it('lists installed models that have a model row, with their context size', async () => {
     const client = {
       listInstalledModels: jest
         .fn()
         .mockResolvedValue(['qwen2.5:1.5b', 'unapproved:latest']),
     };
-    const service = new OllamaService(client as never, config);
+    const models = {
+      findAll: jest
+        .fn()
+        .mockResolvedValue([
+          createModelRecord(),
+          createModelRecord('not-installed:1b', 4096),
+        ]),
+      findByName: jest.fn((name: string) =>
+        Promise.resolve(name === 'qwen2.5:1.5b' ? createModelRecord() : null),
+      ),
+    };
+    const service = new OllamaService(client as never, models as never, config);
 
     await expect(service.listModels()).resolves.toEqual([
-      { name: 'qwen2.5:1.5b', default: true },
+      { name: 'qwen2.5:1.5b', default: true, maxContext: 8192 },
     ]);
-    expect(() => service.assertAllowed('unapproved:latest')).toThrow(
+    await expect(service.assertAllowed('qwen2.5:1.5b')).resolves.toEqual(
+      createModelRecord(),
+    );
+    await expect(service.assertAllowed('unapproved:latest')).rejects.toThrow(
       OllamaError,
     );
+  });
+
+  it('fails bootstrap when the default model has no model row', async () => {
+    const models = { findByName: jest.fn().mockResolvedValue(null) };
+    const service = new OllamaService({} as never, models as never, config);
+
+    await expect(service.onApplicationBootstrap()).rejects.toThrow(
+      'OLLAMA_DEFAULT_MODEL',
+    );
+    models.findByName.mockResolvedValue(createModelRecord());
+    await expect(service.onApplicationBootstrap()).resolves.toBeUndefined();
   });
 
   it('parses streamed NDJSON without exposing thinking fields', async () => {
@@ -115,7 +140,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
       release: jest.fn().mockResolvedValue(true),
     };
     const ollama = {
-      assertAllowed: jest.fn(),
+      assertAllowed: jest.fn().mockResolvedValue(createModelRecord()),
       streamChat: async function* () {
         await Promise.resolve();
         yield { delta: 'Hello ', done: false };
@@ -133,7 +158,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
       {
         findOwnedChat: jest
           .fn()
-          .mockResolvedValue({ selected_model: 'qwen2.5:1.5b' }),
+          .mockResolvedValue({ selected_model: createModelRecord() }),
       } as never,
       history as never,
       {
@@ -191,7 +216,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
       {
         findOwnedChat: jest
           .fn()
-          .mockResolvedValue({ selected_model: 'qwen2.5:1.5b' }),
+          .mockResolvedValue({ selected_model: createModelRecord() }),
       } as never,
       {
         getHistory: jest.fn().mockResolvedValue([]),
@@ -203,7 +228,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
         acquireGenerationLock: jest.fn().mockResolvedValue(lock),
       } as never,
       {
-        assertAllowed: jest.fn(),
+        assertAllowed: jest.fn().mockResolvedValue(createModelRecord()),
         streamChat: async function* () {
           await Promise.resolve();
           yield { delta: 'partial', done: false };
@@ -259,7 +284,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
       {
         findOwnedChat: jest
           .fn()
-          .mockResolvedValue({ selected_model: 'qwen2.5:1.5b' }),
+          .mockResolvedValue({ selected_model: createModelRecord() }),
       } as never,
       history as never,
       {
@@ -267,7 +292,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
         acquireGenerationLock: jest.fn().mockResolvedValue(lock),
       } as never,
       {
-        assertAllowed: jest.fn(),
+        assertAllowed: jest.fn().mockResolvedValue(createModelRecord()),
         // eslint-disable-next-line require-yield
         streamChat: async function* () {
           await Promise.resolve();
@@ -301,7 +326,10 @@ describe('phase 4 Ollama and SSE contracts', () => {
 
   it('creates chats without contacting Ollama', async () => {
     const createChat = jest.fn().mockResolvedValue(createChatRecord());
-    const ollama = { assertAllowed: jest.fn(), assertAvailable: jest.fn() };
+    const ollama = {
+      assertAllowed: jest.fn().mockResolvedValue(createModelRecord()),
+      assertAvailable: jest.fn(),
+    };
     const service = new ChatsService(
       { createChat } as never,
       {} as never,
@@ -363,10 +391,22 @@ function createChatRecord() {
     user_id: null,
     anonymous_session_id: 'anonymous-id',
     title: 'New chat',
-    selected_model: 'qwen2.5:1.5b',
+    selected_model_id: 'model-qwen2.5:1.5b',
+    selected_model: createModelRecord(),
     archived_at: null,
     created_at: now,
     updated_at: now,
     last_message_at: now,
+  };
+}
+
+function createModelRecord(name = 'qwen2.5:1.5b', maxContext = 8192) {
+  const now = new Date('2026-06-14T12:00:00.000Z');
+  return {
+    id: `model-${name}`,
+    name,
+    max_context: maxContext,
+    created_at: now,
+    updated_at: now,
   };
 }

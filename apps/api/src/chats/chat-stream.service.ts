@@ -65,8 +65,9 @@ export class ChatStreamService {
     }
 
     const chat = await this.ownership.findOwnedChat({ chatId, principal });
-    const selectedModel = model ?? chat.selected_model;
-    this.ollama.assertAllowed(selectedModel);
+    const selectedModel = (
+      await this.ollama.assertAllowed(model ?? chat.selected_model.name)
+    ).name;
     const principalLock = await this.locks.acquirePrincipalGenerationLock({
       principal,
       slots: this.principalSlots,

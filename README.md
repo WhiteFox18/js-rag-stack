@@ -18,8 +18,12 @@ and cookie-based authentication with rotating device sessions.
   ```
 
 The default development configuration uses a PostgreSQL database named
-`js_rag_stack` and only exposes Ollama models listed in
-`OLLAMA_ALLOWED_MODELS`.
+`js_rag_stack` and only exposes Ollama models that have a row in the `model`
+table (seeded with `qwen2.5:1.5b`, 8192-token context). Add a model with:
+
+    INSERT INTO model (name, max_context, updated_at) VALUES ('llama3.2:3b', 8192, now());
+
+`OLLAMA_DEFAULT_MODEL` must name one of those rows.
 
 ## Setup
 

@@ -23,17 +23,6 @@ const environmentSchema = z
     REDIS_LOCK_TTL_MS: z.coerce.number().int().positive().default(30_000),
     REDIS_CONNECT_TIMEOUT_MS: z.coerce.number().int().positive().default(2_000),
     OLLAMA_BASE_URL: z.url().default('http://127.0.0.1:11434'),
-    OLLAMA_ALLOWED_MODELS: z
-      .string()
-      .min(1)
-      .default('qwen2.5:1.5b')
-      .transform((value) =>
-        value
-          .split(',')
-          .map((model) => model.trim())
-          .filter(Boolean),
-      )
-      .pipe(z.array(z.string().min(1)).min(1)),
     OLLAMA_DEFAULT_MODEL: z.string().min(1).default('qwen2.5:1.5b'),
     OLLAMA_CONNECT_TIMEOUT_MS: z.coerce
       .number()
@@ -97,19 +86,6 @@ const environmentSchema = z
       .transform((value) => value || undefined),
   })
   .superRefine((environment, context) => {
-    if (
-      !environment.OLLAMA_ALLOWED_MODELS.includes(
-        environment.OLLAMA_DEFAULT_MODEL,
-      )
-    ) {
-      context.addIssue({
-        code: 'custom',
-        path: ['OLLAMA_DEFAULT_MODEL'],
-        message:
-          'OLLAMA_DEFAULT_MODEL must be included in OLLAMA_ALLOWED_MODELS',
-      });
-    }
-
     if (environment.NODE_ENV !== 'production') {
       return;
     }

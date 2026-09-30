@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Chat } from '../generated/prisma/client';
 import { ChatsRepository } from './chats.repository';
-import type { FindOwnedChatParams } from './chats.types';
+import type { ChatWithModel, FindOwnedChatParams } from './chats.types';
 
 @Injectable()
 export class ChatOwnershipService {
@@ -10,7 +9,7 @@ export class ChatOwnershipService {
   async findOwnedChat({
     chatId,
     principal,
-  }: FindOwnedChatParams): Promise<Chat> {
+  }: FindOwnedChatParams): Promise<ChatWithModel> {
     const chat = await this.repository.findOwnedChat({ chatId, principal });
 
     if (!chat) {

@@ -24,6 +24,7 @@ describe('authentication sessions', () => {
   let auth: AuthService;
   let anonymousSessions: AnonymousSessionsService;
   let authCookies: AuthCookieService;
+  let model_id: string;
   const userIds: string[] = [];
 
   beforeAll(async () => {
@@ -63,6 +64,9 @@ describe('authentication sessions', () => {
     );
     await prisma.onModuleInit();
     await redis.onModuleInit();
+    model_id = (
+      await prisma.model.findUniqueOrThrow({ where: { name: 'qwen2.5:1.5b' } })
+    ).id;
   });
 
   afterAll(async () => {
@@ -151,7 +155,7 @@ describe('authentication sessions', () => {
       data: {
         anonymous_session_id: principal.anonymous_session_id,
         title: 'Transfer me',
-        selected_model: 'qwen2.5:1.5b',
+        selected_model_id: model_id,
       },
     });
     const user = await auth.signUp({

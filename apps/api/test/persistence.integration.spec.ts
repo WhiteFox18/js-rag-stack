@@ -26,6 +26,7 @@ describe('persistence foundation', () => {
   let locks: RedisLockService;
   let history: ChatHistoryService;
   let health: HealthService;
+  let model_id: string;
   const anonymous_session_ids: string[] = [];
   const redis_keys = new Set<string>();
 
@@ -57,6 +58,9 @@ describe('persistence foundation', () => {
 
     await prisma.onModuleInit();
     await redis.onModuleInit();
+    model_id = (
+      await prisma.model.findUniqueOrThrow({ where: { name: 'qwen2.5:1.5b' } })
+    ).id;
   });
 
   afterAll(async () => {
@@ -84,9 +88,27 @@ describe('persistence foundation', () => {
       prisma.chat.create({
         data: {
           title: 'Ownerless chat',
-          selected_model: 'qwen2.5:1.5b',
+          selected_model_id: model_id,
         },
       }),
+    ).rejects.toThrow();
+  });
+
+  it('links chats to a model row and blocks deleting a model in use', async () => {
+    const session = await createAnonymousSession();
+    const chat = await prisma.chat.create({
+      data: {
+        anonymous_session_id: session.id,
+        title: 'Model link',
+        selected_model_id: model_id,
+      },
+      include: { selected_model: true },
+    });
+
+    expect(chat.selected_model.name).toBe('qwen2.5:1.5b');
+    expect(chat.selected_model.max_context).toBeGreaterThan(0);
+    await expect(
+      prisma.model.delete({ where: { id: model_id } }),
     ).rejects.toThrow();
   });
 
@@ -97,7 +119,7 @@ describe('persistence foundation', () => {
       data: {
         anonymous_session_id: owner.id,
         title: 'Private chat',
-        selected_model: 'qwen2.5:1.5b',
+        selected_model_id: model_id,
       },
     });
 
@@ -166,7 +188,7 @@ describe('persistence foundation', () => {
       data: {
         anonymous_session_id: session.id,
         title: 'History cache',
-        selected_model: 'qwen2.5:1.5b',
+        selected_model_id: model_id,
       },
     });
     redis_keys.add(chat.id);
@@ -252,7 +274,7 @@ describe('persistence foundation', () => {
       data: {
         anonymous_session_id: session.id,
         title: 'Incomplete turns',
-        selected_model: 'qwen2.5:1.5b',
+        selected_model_id: model_id,
       },
     });
     redis_keys.add(chat.id);

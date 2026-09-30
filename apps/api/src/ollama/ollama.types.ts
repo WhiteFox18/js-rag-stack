@@ -6,6 +6,7 @@ export interface OllamaHistoryMessage {
 export interface OllamaModel {
   name: string;
   default: boolean;
+  maxContext: number;
 }
 
 export interface OllamaChatChunk {

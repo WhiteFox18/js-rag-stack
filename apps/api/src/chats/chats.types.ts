@@ -4,8 +4,26 @@ import type {
   ChatSummary,
 } from '@js-rag-stack/contracts';
 import type { RequestPrincipal } from '../common/models/request-principal';
-import type { Chat, Message } from '../generated/prisma/client';
+import type { Message, Prisma } from '../generated/prisma/client';
 import type { RedisService } from '../redis/redis.service';
+
+export type ChatWithModel = Prisma.ChatGetPayload<{
+  include: { selected_model: true };
+}>;
+
+export interface CreateChatRecordParams {
+  principal: RequestPrincipal;
+  title: string;
+  selectedModelId: string;
+  firstPrompt?: string;
+}
+
+export interface UpdateChatRecordParams {
+  chatId: string;
+  title?: string;
+  selectedModelId?: string;
+  archived?: boolean;
+}
 
 export type ChatHistoryEntry =
   | { role: 'user'; content: string }
@@ -110,7 +128,7 @@ export interface GenerationMessages {
 }
 
 export interface MapChatDetailParams {
-  chat: Chat;
+  chat: ChatWithModel;
   messages: Message[];
   nextCursor: string | null;
 }

@@ -1,18 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import type { Chat, Message } from '../generated/prisma/client';
+import type { Message } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { estimateTokenCount, getOwnerFilter } from './chats.helpers';
 import type {
   BeginGenerationParams,
   CompleteGenerationParams,
-  CreateChatParams,
+  ChatWithModel,
+  CreateChatRecordParams,
   EndGenerationParams,
   FindOwnedChatParams,
   GenerationMessages,
   ListChatsParams,
   ListMessagesParams,
-  UpdateChatParams,
+  UpdateChatRecordParams,
 } from './chats.types';
+
+const withModel = { selected_model: true } as const;
 
 @Injectable()
 export class ChatsRepository {
@@ -21,9 +24,10 @@ export class ChatsRepository {
   findOwnedChat({
     chatId,
     principal,
-  }: FindOwnedChatParams): Promise<Chat | null> {
+  }: FindOwnedChatParams): Promise<ChatWithModel | null> {
     return this.prisma.chat.findFirst({
       where: { id: chatId, ...getOwnerFilter(principal) },
+      include: withModel,
     });
   }
 
@@ -37,16 +41,17 @@ export class ChatsRepository {
   async createChat({
     principal,
     title,
-    selectedModel,
+    selectedModelId,
     firstPrompt,
-  }: CreateChatParams): Promise<Chat> {
+  }: CreateChatRecordParams): Promise<ChatWithModel> {
     return this.prisma.$transaction(async (transaction) => {
       const chat = await transaction.chat.create({
         data: {
           ...getOwnerFilter(principal),
           title,
-          selected_model: selectedModel,
+          selected_model_id: selectedModelId,
         },
+        include: withModel,
       });
 
       if (firstPrompt) {
@@ -71,7 +76,7 @@ export class ChatsRepository {
     cursor,
     limit,
     includeArchived,
-  }: ListChatsParams): Promise<Chat[]> {
+  }: ListChatsParams): Promise<ChatWithModel[]> {
     return this.prisma.chat.findMany({
       where: {
         ...getOwnerFilter(principal),
@@ -80,6 +85,7 @@ export class ChatsRepository {
       orderBy: [{ last_message_at: 'desc' }, { id: 'desc' }],
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      include: withModel,
     });
   }
 
@@ -99,20 +105,21 @@ export class ChatsRepository {
   updateChat({
     chatId,
     title,
-    selectedModel,
+    selectedModelId,
     archived,
-  }: UpdateChatParams): Promise<Chat> {
+  }: UpdateChatRecordParams): Promise<ChatWithModel> {
     return this.prisma.chat.update({
       where: { id: chatId },
       data: {
         ...(title === undefined ? {} : { title }),
-        ...(selectedModel === undefined
+        ...(selectedModelId === undefined
           ? {}
-          : { selected_model: selectedModel }),
+          : { selected_model_id: selectedModelId }),
         ...(archived === undefined
           ? {}
           : { archived_at: archived ? new Date() : null }),
       },
+      include: withModel,
     });
   }
 
