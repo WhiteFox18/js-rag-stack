@@ -30,31 +30,31 @@ Improve the chat SPA across four areas, delivered in phases:
 
 ## 2. Decisions (user-approved)
 
-| Topic | Decision |
-|---|---|
-| Scope | All areas, phased |
-| Navigator on narrow screens | Hidden below `xl` |
-| Markdown | `react-markdown` + `remark-gfm` + `shiki` (lazy-loaded), copy button on code blocks |
-| Theme | System / Light / Dark toggle, persisted in `localStorage` |
-| Visual direction | Calm minimal: neutral grays, one restrained accent, prose-style assistant replies, compact user bubbles |
-| Navigator tracking | `IntersectionObserver` + `ResizeObserver` |
-| Icons | Inline SVG components, no icon library |
+| Topic                       | Decision                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Scope                       | All areas, phased                                                                                       |
+| Navigator on narrow screens | Hidden below `xl`                                                                                       |
+| Markdown                    | `react-markdown` + `remark-gfm` + `shiki` (lazy-loaded), copy button on code blocks                     |
+| Theme                       | System / Light / Dark toggle, persisted in `localStorage`                                               |
+| Visual direction            | Calm minimal: neutral grays, one restrained accent, prose-style assistant replies, compact user bubbles |
+| Navigator tracking          | `IntersectionObserver` + `ResizeObserver`                                                               |
+| Icons                       | Inline SVG components, no icon library                                                                  |
 
 ## 3. Components
 
 New units (paths relative to `apps/web/src`):
 
-| Unit | Responsibility | Depends on |
-|---|---|---|
-| `features/chat/markdown.tsx` | Render assistant markdown. Code blocks: language label, copy button, `shiki` highlighting loaded via dynamic `import()`; plain `<pre>` until loaded. Raw HTML disabled (react-markdown default; no `rehype-raw`). | react-markdown, remark-gfm, shiki |
-| `features/chat/prompt-navigator.tsx` | Presentational list. Props: `prompts: { id: string; preview: string }[]`, `activeId: string \| null`, `onSelect(id)`. Preview is the prompt's first line, CSS-truncated with ellipsis. | — |
-| `features/chat/use-scroll-tracking.ts` | Hook owning scroll behavior: registers message nodes (`registerMessage(id)` ref callback), computes `activePromptId` (IntersectionObserver), `isOverflowing` (ResizeObserver on container + content), `isAtBottom`, `scrollToMessage(id)`, `scrollToBottom()`. | browser observers |
-| `lib/theme.ts` | Read/write theme preference (`system \| light \| dark`) via `lib/storage.ts`; set or remove `data-theme` on `<html>`. System mode needs no listener: CSS `light-dark()` follows the OS. | `lib/storage.ts` |
-| `lib/storage.ts` | try/catch-wrapped `localStorage` read/write shared by theme and sidebar state. | — |
-| `features/chat/theme-toggle.tsx` | Three-way segmented control in the sidebar footer. | `lib/theme.ts` |
-| `components/icons.tsx` | Inline SVG icons: menu, sidebar, pencil, trash, more (⋯), copy, check, send, stop, arrow-down, sun, moon, monitor. `aria-hidden` by default. | — |
-| `components/confirm-dialog.tsx` | Accessible confirm using native `<dialog>` (`showModal`) — focus trap, Escape, focus return to invoker. | — |
-| `components/menu.tsx` | Minimal popover menu (button + list) for the per-chat ⋯ actions; Escape/outside-click close, arrow-key navigation, focus return. | — |
+| Unit                                   | Responsibility                                                                                                                                                                                                                                                 | Depends on                        |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `features/chat/markdown.tsx`           | Render assistant markdown. Code blocks: language label, copy button, `shiki` highlighting loaded via dynamic `import()`; plain `<pre>` until loaded. Raw HTML disabled (react-markdown default; no `rehype-raw`).                                              | react-markdown, remark-gfm, shiki |
+| `features/chat/prompt-navigator.tsx`   | Presentational list. Props: `prompts: { id: string; preview: string }[]`, `activeId: string \| null`, `onSelect(id)`. Preview is the prompt's first line, CSS-truncated with ellipsis.                                                                         | —                                 |
+| `features/chat/use-scroll-tracking.ts` | Hook owning scroll behavior: registers message nodes (`registerMessage(id)` ref callback), computes `activePromptId` (IntersectionObserver), `isOverflowing` (ResizeObserver on container + content), `isAtBottom`, `scrollToMessage(id)`, `scrollToBottom()`. | browser observers                 |
+| `lib/theme.ts`                         | Read/write theme preference (`system \| light \| dark`) via `lib/storage.ts`; set or remove `data-theme` on `<html>`. System mode needs no listener: CSS `light-dark()` follows the OS.                                                                        | `lib/storage.ts`                  |
+| `lib/storage.ts`                       | try/catch-wrapped `localStorage` read/write shared by theme and sidebar state.                                                                                                                                                                                 | —                                 |
+| `features/chat/theme-toggle.tsx`       | Three-way segmented control in the sidebar footer.                                                                                                                                                                                                             | `lib/theme.ts`                    |
+| `components/icons.tsx`                 | Inline SVG icons: menu, sidebar, pencil, trash, more (⋯), copy, check, send, stop, arrow-down, sun, moon, monitor. `aria-hidden` by default.                                                                                                                   | —                                 |
+| `components/confirm-dialog.tsx`        | Accessible confirm using native `<dialog>` (`showModal`) — focus trap, Escape, focus return to invoker.                                                                                                                                                        | —                                 |
+| `components/menu.tsx`                  | Minimal popover menu (button + list) for the per-chat ⋯ actions; Escape/outside-click close, arrow-key navigation, focus return.                                                                                                                               | —                                 |
 
 Changed units:
 

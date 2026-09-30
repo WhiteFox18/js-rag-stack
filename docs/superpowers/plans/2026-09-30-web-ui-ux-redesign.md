@@ -39,33 +39,33 @@
 
 ## File Map
 
-| File | Status | Responsibility |
-|---|---|---|
-| `apps/web/src/styles.css` | modify | Tokens, custom variant, markdown/shiki/animation CSS |
-| `apps/web/index.html` | modify | Inter font, theme pre-paint script |
-| `apps/web/src/components/components.types.ts` | create | Prop types for shared components |
-| `apps/web/src/components/icons.tsx` | create | Inline SVG icon set |
-| `apps/web/src/components/copy-button.tsx` | create | Clipboard button with copied/failed feedback |
-| `apps/web/src/components/menu.tsx` | create | Accessible popover action menu |
-| `apps/web/src/components/confirm-dialog.tsx` | create | Native `<dialog>` confirmation |
-| `apps/web/src/lib/storage.ts` | create | Safe `localStorage` read/write |
-| `apps/web/src/lib/theme.ts` | create | Theme preference read/apply |
-| `apps/web/src/features/chat/highlight.ts` | create | Lazy `shiki` highlighting |
-| `apps/web/src/features/chat/code-block.tsx` | create | Fenced code block UI |
-| `apps/web/src/features/chat/markdown.tsx` | create | Markdown renderer |
-| `apps/web/src/features/chat/use-scroll-tracking.ts` | create | Scroll/observer hook |
-| `apps/web/src/features/chat/prompt-navigator.tsx` | create | Prompt list UI |
-| `apps/web/src/features/chat/theme-toggle.tsx` | create | System/Light/Dark control |
-| `apps/web/src/features/chat/chat.types.ts` | modify | New prop/hook types |
-| `apps/web/src/features/chat/chat.helpers.ts` | modify | `collectPrompts`, `visibleServerMessages`, `shouldShowNavigator` |
-| `apps/web/src/features/chat/message-list.tsx` | rewrite | Transcript UI |
-| `apps/web/src/features/chat/chat-page.tsx` | rewrite | Layout, navigator column, empty state |
-| `apps/web/src/features/chat/composer.tsx` | rewrite | Auto-grow composer |
-| `apps/web/src/features/chat/chat-sidebar.tsx` | rewrite | Menu/confirm, tokens, theme toggle |
-| `apps/web/src/features/chat/chat-shell.tsx` | rewrite | Collapsible sidebar |
-| `apps/web/src/features/chat/model-selector.tsx`, `readiness-banner.tsx`, `features/auth/auth-dialog.tsx`, `features/auth/account-page.tsx` | modify | Token restyle |
-| `apps/web/src/test/dom.ts` | create | Observer/scroll/dialog mocks + helpers |
-| `apps/web/src/test/setup.ts` | modify | Install DOM mocks |
+| File                                                                                                                                       | Status  | Responsibility                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------- |
+| `apps/web/src/styles.css`                                                                                                                  | modify  | Tokens, custom variant, markdown/shiki/animation CSS             |
+| `apps/web/index.html`                                                                                                                      | modify  | Inter font, theme pre-paint script                               |
+| `apps/web/src/components/components.types.ts`                                                                                              | create  | Prop types for shared components                                 |
+| `apps/web/src/components/icons.tsx`                                                                                                        | create  | Inline SVG icon set                                              |
+| `apps/web/src/components/copy-button.tsx`                                                                                                  | create  | Clipboard button with copied/failed feedback                     |
+| `apps/web/src/components/menu.tsx`                                                                                                         | create  | Accessible popover action menu                                   |
+| `apps/web/src/components/confirm-dialog.tsx`                                                                                               | create  | Native `<dialog>` confirmation                                   |
+| `apps/web/src/lib/storage.ts`                                                                                                              | create  | Safe `localStorage` read/write                                   |
+| `apps/web/src/lib/theme.ts`                                                                                                                | create  | Theme preference read/apply                                      |
+| `apps/web/src/features/chat/highlight.ts`                                                                                                  | create  | Lazy `shiki` highlighting                                        |
+| `apps/web/src/features/chat/code-block.tsx`                                                                                                | create  | Fenced code block UI                                             |
+| `apps/web/src/features/chat/markdown.tsx`                                                                                                  | create  | Markdown renderer                                                |
+| `apps/web/src/features/chat/use-scroll-tracking.ts`                                                                                        | create  | Scroll/observer hook                                             |
+| `apps/web/src/features/chat/prompt-navigator.tsx`                                                                                          | create  | Prompt list UI                                                   |
+| `apps/web/src/features/chat/theme-toggle.tsx`                                                                                              | create  | System/Light/Dark control                                        |
+| `apps/web/src/features/chat/chat.types.ts`                                                                                                 | modify  | New prop/hook types                                              |
+| `apps/web/src/features/chat/chat.helpers.ts`                                                                                               | modify  | `collectPrompts`, `visibleServerMessages`, `shouldShowNavigator` |
+| `apps/web/src/features/chat/message-list.tsx`                                                                                              | rewrite | Transcript UI                                                    |
+| `apps/web/src/features/chat/chat-page.tsx`                                                                                                 | rewrite | Layout, navigator column, empty state                            |
+| `apps/web/src/features/chat/composer.tsx`                                                                                                  | rewrite | Auto-grow composer                                               |
+| `apps/web/src/features/chat/chat-sidebar.tsx`                                                                                              | rewrite | Menu/confirm, tokens, theme toggle                               |
+| `apps/web/src/features/chat/chat-shell.tsx`                                                                                                | rewrite | Collapsible sidebar                                              |
+| `apps/web/src/features/chat/model-selector.tsx`, `readiness-banner.tsx`, `features/auth/auth-dialog.tsx`, `features/auth/account-page.tsx` | modify  | Token restyle                                                    |
+| `apps/web/src/test/dom.ts`                                                                                                                 | create  | Observer/scroll/dialog mocks + helpers                           |
+| `apps/web/src/test/setup.ts`                                                                                                               | modify  | Install DOM mocks                                                |
 
 ---
 
@@ -74,6 +74,7 @@
 ### Task 1: Design tokens, typography, and icons
 
 **Files:**
+
 - Modify: `apps/web/src/styles.css` (full replacement)
 - Modify: `apps/web/index.html`
 - Create: `apps/web/src/components/components.types.ts`
@@ -81,6 +82,7 @@
 - Test: `apps/web/src/components/icons.test.tsx`
 
 **Interfaces:**
+
 - Produces: Tailwind color utilities for every token in Global Constraints (`bg-bg`, `bg-surface`, `bg-surface-2`, `border-border`, `text-fg`, `text-fg-muted`, `text-fg-subtle`, `bg-accent`, `hover:bg-accent-hover`, `text-accent-fg`, `bg-accent-soft`, `text-danger`, `bg-danger-soft`, `text-warning`, `bg-warning-soft`, `text-success`, `bg-success-soft`); custom variant `can-hover:` (applies only on devices with hover). Icon components `MenuIcon`, `PanelLeftIcon`, `PlusIcon`, `PencilIcon`, `TrashIcon`, `MoreIcon`, `CopyIcon`, `CheckIcon`, `SendIcon`, `StopIcon`, `ArrowDownIcon`, `SunIcon`, `MoonIcon`, `MonitorIcon`, each `(props: IconProps) => JSX.Element`, `IconProps = SVGProps<SVGSVGElement>`, decorative (`aria-hidden="true"`), sized `1em`, colored `currentColor`.
 
 - [ ] **Step 1: Write the failing test**
@@ -426,6 +428,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 2: Markdown rendering with highlighted, copyable code blocks
 
 **Files:**
+
 - Modify: `apps/web/package.json` (via pnpm)
 - Create: `apps/web/src/components/copy-button.tsx`
 - Modify: `apps/web/src/components/components.types.ts`
@@ -437,6 +440,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Test: `apps/web/src/components/copy-button.test.tsx`, `apps/web/src/features/chat/highlight.test.ts`, `apps/web/src/features/chat/markdown.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `CopyIcon`, `CheckIcon` (Task 1).
 - Produces:
   - `CopyButton({ text: string; label?: string /* default 'Copy' */; showLabel?: boolean; className?: string })` — accessible name is `label`, then `'Copied'` or `'Copy failed'` for 1.5s.
@@ -518,7 +522,7 @@ describe('highlightCode', () => {
 
 `apps/web/src/features/chat/markdown.test.tsx`:
 
-```tsx
+````tsx
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -555,9 +559,7 @@ describe('MarkdownContent', () => {
     const docs = screen.getByRole('link', { name: 'docs' });
     expect(docs).toHaveAttribute('target', '_blank');
     expect(docs).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(screen.getByText('bad').closest('a')?.getAttribute('href')).toBe(
-      '',
-    );
+    expect(screen.getByText('bad').closest('a')?.getAttribute('href')).toBe('');
   });
 
   it('never renders raw HTML', () => {
@@ -614,7 +616,7 @@ describe('MarkdownContent', () => {
     expect(await navigator.clipboard.readText()).toBe('npm test');
   });
 });
-```
+````
 
 - [ ] **Step 3: Run the tests to verify they fail**
 
@@ -976,6 +978,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 3: Scroll-tracking hook and DOM test mocks
 
 **Files:**
+
 - Create: `apps/web/src/test/dom.ts`
 - Modify: `apps/web/src/test/setup.ts`
 - Modify: `apps/web/src/features/chat/chat.types.ts`
@@ -983,6 +986,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Test: `apps/web/src/features/chat/use-scroll-tracking.test.tsx`
 
 **Interfaces:**
+
 - Produces (test utils, `src/test/dom.ts`): `installDomMocks()`, `resetObservers()`, `triggerResize()`, `triggerIntersection(target: Element, init: { isIntersecting: boolean; top?: number; rootBottom?: number })`, `mockScrollGeometry(element: HTMLElement, initial: { scrollHeight: number; clientHeight: number; scrollTop?: number }): { scrollHeight: number; clientHeight: number; scrollTop: number }` (returned object is live — mutate it to change geometry), `getScrollContainer(): HTMLElement` (finds `[data-scroll-container]`).
 - Produces (app):
   - `PROMPT_ATTRIBUTE = 'data-prompt-id'` exported from `use-scroll-tracking.ts`.
@@ -1101,10 +1105,7 @@ export function triggerIntersection(
         intersectionRect: {} as DOMRectReadOnly,
         time: 0,
       } as IntersectionObserverEntry;
-      observer.callback(
-        [entry],
-        observer as unknown as IntersectionObserver,
-      );
+      observer.callback([entry], observer as unknown as IntersectionObserver);
     }
   });
 }
@@ -1400,9 +1401,7 @@ export function useScrollTracking({
   const [content, setContent] = useState<HTMLDivElement | null>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
-  const [observedActiveId, setObservedActiveId] = useState<string | null>(
-    null,
-  );
+  const [observedActiveId, setObservedActiveId] = useState<string | null>(null);
   const [lockedId, setLockedId] = useState<string | null>(null);
   const [trackedKey, setTrackedKey] = useState(resetKey);
   const pinnedRef = useRef(true);
@@ -1560,6 +1559,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 4: Transcript redesign
 
 **Files:**
+
 - Modify: `apps/web/src/features/chat/chat.helpers.ts`
 - Modify: `apps/web/src/features/chat/chat.types.ts`
 - Rewrite: `apps/web/src/features/chat/message-list.tsx`
@@ -1568,6 +1568,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Test: `apps/web/src/features/chat/chat.helpers.test.ts`, `apps/web/src/features/chat/message-list.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useScrollTracking`, `ScrollTracking` (Task 3); `MarkdownContent` (Task 2); `CopyButton` (Task 2); `ArrowDownIcon` (Task 1).
 - Produces:
   - `PENDING_PROMPT_ID = 'pending-prompt'` (chat.helpers).
@@ -1720,9 +1721,10 @@ describe('MessageList', () => {
     );
     expect(screen.getAllByText('Live question')).toHaveLength(1);
     expect(screen.getByText('Partial ans')).toBeInTheDocument();
-    expect(
-      screen.getByRole('article', { name: 'Assistant' }),
-    ).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('article', { name: 'Assistant' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
   });
 
   it('shows a thinking indicator before the first token', () => {
@@ -2078,7 +2080,10 @@ export function MessageList({
             )}
             {isPendingVisible(pending) ? (
               <>
-                <UserMessage id={PENDING_PROMPT_ID} content={pending.userContent} />
+                <UserMessage
+                  id={PENDING_PROMPT_ID}
+                  content={pending.userContent}
+                />
                 <AssistantMessage
                   content={pending.assistantText}
                   streaming
@@ -2160,31 +2165,31 @@ import { useScrollTracking } from './use-scroll-tracking';
 After the `const messages = mergeMessages(...)` statement add:
 
 ```ts
-  const chatPending = pending && pending.chatId === chatId ? pending : null;
-  const prompts = collectPrompts({ messages, pending: chatPending });
-  const scroll = useScrollTracking({
-    promptIds: prompts.map((prompt) => prompt.id),
-    resetKey: scope,
-  });
+const chatPending = pending && pending.chatId === chatId ? pending : null;
+const prompts = collectPrompts({ messages, pending: chatPending });
+const scroll = useScrollTracking({
+  promptIds: prompts.map((prompt) => prompt.id),
+  resetKey: scope,
+});
 ```
 
 In `handleSend`, directly after `if (!activeModel) return false;` add:
 
 ```ts
-    scroll.scrollToBottom();
+scroll.scrollToBottom();
 ```
 
 Replace the `<MessageList ... />` element with:
 
 ```tsx
-        <MessageList
-          messages={messages}
-          pending={chatPending}
-          hasOlder={Boolean(chat.hasNextPage)}
-          isLoadingOlder={chat.isFetchingNextPage}
-          onLoadOlder={() => void chat.fetchNextPage()}
-          scroll={scroll}
-        />
+<MessageList
+  messages={messages}
+  pending={chatPending}
+  hasOlder={Boolean(chat.hasNextPage)}
+  isLoadingOlder={chat.isFetchingNextPage}
+  onLoadOlder={() => void chat.fetchNextPage()}
+  scroll={scroll}
+/>
 ```
 
 - [ ] **Step 8: Run the tests to verify they pass**
@@ -2209,12 +2214,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 5: Prompt navigator and two-column chat layout
 
 **Files:**
+
 - Modify: `apps/web/src/features/chat/chat.helpers.ts`, `chat.types.ts`
 - Create: `apps/web/src/features/chat/prompt-navigator.tsx`
 - Rewrite: `apps/web/src/features/chat/chat-page.tsx`
 - Test: `apps/web/src/features/chat/prompt-navigator.test.tsx`, `chat.helpers.test.ts`, `chat-page.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `collectPrompts`, `PromptSummary` (Task 4); `useScrollTracking` (Task 3).
 - Produces:
   - `MIN_NAVIGATOR_PROMPTS = 3`; `shouldShowNavigator({ promptCount: number; isOverflowing: boolean }): boolean`.
@@ -2257,8 +2264,12 @@ const prompts = [
 
 describe('PromptNavigator', () => {
   it('lists prompts in order and marks the active one', () => {
-    render(<PromptNavigator prompts={prompts} activeId="b" onSelect={vi.fn()} />);
-    const nav = screen.getByRole('navigation', { name: 'Prompts in this chat' });
+    render(
+      <PromptNavigator prompts={prompts} activeId="b" onSelect={vi.fn()} />,
+    );
+    const nav = screen.getByRole('navigation', {
+      name: 'Prompts in this chat',
+    });
     const buttons = screen.getAllByRole('button');
     expect(nav).toBeInTheDocument();
     expect(buttons.map((button) => button.textContent)).toEqual([
@@ -2271,7 +2282,9 @@ describe('PromptNavigator', () => {
   });
 
   it('truncates long prompts but exposes the full text', () => {
-    render(<PromptNavigator prompts={prompts} activeId={null} onSelect={vi.fn()} />);
+    render(
+      <PromptNavigator prompts={prompts} activeId={null} onSelect={vi.fn()} />,
+    );
     const long = screen.getByRole('button', { name: /Prompt 3/ });
     expect(long).toHaveClass('truncate');
     expect(long).toHaveAttribute('title', prompts[2]?.preview);
@@ -2279,8 +2292,12 @@ describe('PromptNavigator', () => {
 
   it('reports the selected prompt', async () => {
     const onSelect = vi.fn();
-    render(<PromptNavigator prompts={prompts} activeId={null} onSelect={onSelect} />);
-    await userEvent.click(screen.getByRole('button', { name: /First question/ }));
+    render(
+      <PromptNavigator prompts={prompts} activeId={null} onSelect={onSelect} />,
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: /First question/ }),
+    );
     expect(onSelect).toHaveBeenCalledWith('a');
   });
 });
@@ -2672,11 +2689,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 6: Auto-growing composer
 
 **Files:**
+
 - Rewrite: `apps/web/src/features/chat/composer.tsx`
 - Modify: `apps/web/src/features/chat/chat.types.ts`
 - Test: `apps/web/src/features/chat/composer.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `SendIcon`, `StopIcon` (Task 1).
 - Produces: `ComposerInsertion = { id: number; text: string }`; `ComposerProps` gains optional `insertion?: ComposerInsertion | null` — each new `id` replaces the draft with `text` and focuses the field. Buttons keep accessible names `Send` and `Stop`.
 
@@ -2685,83 +2704,83 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 Append inside the `describe('Composer', …)` block of `apps/web/src/features/chat/composer.test.tsx` (add `fireEvent` to the `@testing-library/react` import):
 
 ```tsx
-  it('shows a character counter only near the limit', () => {
-    render(
-      <Composer
-        draftKey="d"
-        isBusy={false}
-        disabled={false}
-        onSend={vi.fn()}
-        onStop={vi.fn()}
-      />,
-    );
-    const input = screen.getByLabelText('Message');
-    fireEvent.change(input, { target: { value: 'x'.repeat(10_800) } });
-    expect(screen.queryByText(/\/ 12000/)).toBeNull();
-    fireEvent.change(input, { target: { value: 'x'.repeat(10_801) } });
-    expect(screen.getByText('10801 / 12000')).toBeInTheDocument();
-  });
+it('shows a character counter only near the limit', () => {
+  render(
+    <Composer
+      draftKey="d"
+      isBusy={false}
+      disabled={false}
+      onSend={vi.fn()}
+      onStop={vi.fn()}
+    />,
+  );
+  const input = screen.getByLabelText('Message');
+  fireEvent.change(input, { target: { value: 'x'.repeat(10_800) } });
+  expect(screen.queryByText(/\/ 12000/)).toBeNull();
+  fireEvent.change(input, { target: { value: 'x'.repeat(10_801) } });
+  expect(screen.getByText('10801 / 12000')).toBeInTheDocument();
+});
 
-  it('describes the keyboard shortcuts', () => {
-    render(
-      <Composer
-        draftKey="d"
-        isBusy={false}
-        disabled={false}
-        onSend={vi.fn()}
-        onStop={vi.fn()}
-      />,
-    );
-    expect(screen.getByLabelText('Message')).toHaveAccessibleDescription(
-      'Enter to send · Shift+Enter for a new line',
-    );
-  });
+it('describes the keyboard shortcuts', () => {
+  render(
+    <Composer
+      draftKey="d"
+      isBusy={false}
+      disabled={false}
+      onSend={vi.fn()}
+      onStop={vi.fn()}
+    />,
+  );
+  expect(screen.getByLabelText('Message')).toHaveAccessibleDescription(
+    'Enter to send · Shift+Enter for a new line',
+  );
+});
 
-  it('grows with its content', () => {
-    render(
-      <Composer
-        draftKey="d"
-        isBusy={false}
-        disabled={false}
-        onSend={vi.fn()}
-        onStop={vi.fn()}
-      />,
-    );
-    const input = screen.getByLabelText<HTMLTextAreaElement>('Message');
-    Object.defineProperty(input, 'scrollHeight', {
-      configurable: true,
-      value: 120,
-    });
-    fireEvent.change(input, { target: { value: 'a\nb\nc\nd' } });
-    expect(input.style.height).toBe('120px');
+it('grows with its content', () => {
+  render(
+    <Composer
+      draftKey="d"
+      isBusy={false}
+      disabled={false}
+      onSend={vi.fn()}
+      onStop={vi.fn()}
+    />,
+  );
+  const input = screen.getByLabelText<HTMLTextAreaElement>('Message');
+  Object.defineProperty(input, 'scrollHeight', {
+    configurable: true,
+    value: 120,
   });
+  fireEvent.change(input, { target: { value: 'a\nb\nc\nd' } });
+  expect(input.style.height).toBe('120px');
+});
 
-  it('applies inserted text and focuses the field', () => {
-    const { rerender } = render(
-      <Composer
-        draftKey="d"
-        isBusy={false}
-        disabled={false}
-        insertion={null}
-        onSend={vi.fn()}
-        onStop={vi.fn()}
-      />,
-    );
-    rerender(
-      <Composer
-        draftKey="d"
-        isBusy={false}
-        disabled={false}
-        insertion={{ id: 1, text: 'Explain SSE' }}
-        onSend={vi.fn()}
-        onStop={vi.fn()}
-      />,
-    );
-    const input = screen.getByLabelText('Message');
-    expect(input).toHaveValue('Explain SSE');
-    expect(input).toHaveFocus();
-    expect(localStorage.getItem('d')).toBe('Explain SSE');
-  });
+it('applies inserted text and focuses the field', () => {
+  const { rerender } = render(
+    <Composer
+      draftKey="d"
+      isBusy={false}
+      disabled={false}
+      insertion={null}
+      onSend={vi.fn()}
+      onStop={vi.fn()}
+    />,
+  );
+  rerender(
+    <Composer
+      draftKey="d"
+      isBusy={false}
+      disabled={false}
+      insertion={{ id: 1, text: 'Explain SSE' }}
+      onSend={vi.fn()}
+      onStop={vi.fn()}
+    />,
+  );
+  const input = screen.getByLabelText('Message');
+  expect(input).toHaveValue('Explain SSE');
+  expect(input).toHaveFocus();
+  expect(localStorage.getItem('d')).toBe('Explain SSE');
+});
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -2978,12 +2997,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 7: Chat actions menu, confirm dialog, and sidebar restyle
 
 **Files:**
+
 - Create: `apps/web/src/components/menu.tsx`, `apps/web/src/components/confirm-dialog.tsx`
 - Modify: `apps/web/src/components/components.types.ts`
 - Rewrite: `apps/web/src/features/chat/chat-sidebar.tsx`
 - Test: `apps/web/src/components/confirm-dialog.test.tsx`, `apps/web/src/features/chat/chat-sidebar.test.tsx`
 
 **Interfaces:**
+
 - Consumes: icons (Task 1); dialog mocks (Task 3).
 - Produces:
   - `Menu({ label: string; items: MenuItem[]; triggerClassName?: string })`, `MenuItem = { label: string; onSelect(): void; icon?: ReactNode; tone?: 'default' | 'danger' }`. Trigger is a ⋯ button named `label`. Selecting an item returns focus to the trigger, then calls `onSelect`. Escape closes and refocuses the trigger; ArrowUp/ArrowDown move between items; outside pointer-down closes.
@@ -3194,9 +3215,7 @@ export function Menu({ label, items, triggerClassName = '' }: MenuProps) {
 
   useEffect(() => {
     if (!open) return;
-    rootRef.current
-      ?.querySelector<HTMLElement>('[role="menuitem"]')
-      ?.focus();
+    rootRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
@@ -3213,7 +3232,9 @@ export function Menu({ label, items, triggerClassName = '' }: MenuProps) {
     const menuItems = [
       ...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'),
     ];
-    const index = menuItems.findIndex((item) => item === document.activeElement);
+    const index = menuItems.findIndex(
+      (item) => item === document.activeElement,
+    );
     if (event.key === 'Escape') {
       event.preventDefault();
       closeAndRefocus();
@@ -3640,12 +3661,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 8: Safe storage helper and collapsible sidebar
 
 **Files:**
+
 - Create: `apps/web/src/lib/storage.ts`
 - Rewrite: `apps/web/src/features/chat/chat-shell.tsx`
 - Modify: `apps/web/src/features/chat/chat-sidebar.tsx`, `chat.types.ts`, `chat-sidebar.test.tsx`
 - Test: `apps/web/src/lib/storage.test.ts`, `apps/web/src/features/chat/chat-shell.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `MenuIcon`, `PanelLeftIcon` (Task 1).
 - Produces: `readStorage(key: string): string | null`; `writeStorage({ key, value }: { key: string; value: string | null }): void` (`null` removes). `SIDEBAR_COLLAPSED_KEY = 'sidebar:collapsed'`. `ChatSidebarProps` gains `onCollapse: () => void`. Buttons: `Hide sidebar` (desktop, in sidebar), `Show sidebar` (desktop, in shell header when collapsed), `Toggle chat history` (mobile).
 
@@ -3815,29 +3838,30 @@ In `apps/web/src/features/chat/chat.types.ts`, add to `ChatSidebarProps`:
 ```
 
 In `apps/web/src/features/chat/chat-sidebar.tsx`:
+
 - Extend the icon import: `import { PanelLeftIcon, PencilIcon, PlusIcon, TrashIcon } from '../../components/icons';`
 - Add `onCollapse` to the destructured `ChatSidebar` props.
 - Replace the top `<div className="p-3">…</div>` block with:
 
 ```tsx
-      <div className="flex items-center gap-2 p-3">
-        <Link
-          to="/chats"
-          onClick={onNavigate}
-          className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2 text-sm font-medium text-fg hover:bg-surface-2"
-        >
-          <PlusIcon className="size-4" />
-          New chat
-        </Link>
-        <button
-          type="button"
-          aria-label="Hide sidebar"
-          onClick={onCollapse}
-          className="hidden size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2 hover:text-fg md:grid"
-        >
-          <PanelLeftIcon className="size-4" />
-        </button>
-      </div>
+<div className="flex items-center gap-2 p-3">
+  <Link
+    to="/chats"
+    onClick={onNavigate}
+    className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2 text-sm font-medium text-fg hover:bg-surface-2"
+  >
+    <PlusIcon className="size-4" />
+    New chat
+  </Link>
+  <button
+    type="button"
+    aria-label="Hide sidebar"
+    onClick={onCollapse}
+    className="hidden size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2 hover:text-fg md:grid"
+  >
+    <PanelLeftIcon className="size-4" />
+  </button>
+</div>
 ```
 
 - [ ] **Step 5: Rewrite `apps/web/src/features/chat/chat-shell.tsx`**
@@ -3978,10 +4002,12 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 9: Empty state with example prompts
 
 **Files:**
+
 - Modify: `apps/web/src/features/chat/chat-page.tsx`
 - Test: `apps/web/src/features/chat/chat-page.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `ComposerInsertion`, `Composer.insertion` (Task 6).
 - Produces: `EXAMPLE_PROMPTS` (module constant in chat-page). Clicking an example fills the composer and focuses it; it never sends.
 
@@ -3990,25 +4016,25 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 Append inside `describe('ChatPage', …)` in `apps/web/src/features/chat/chat-page.test.tsx`:
 
 ```tsx
-  it('fills the composer from an example prompt without sending', async () => {
-    renderPage();
-    const user = userEvent.setup();
-    await screen.findByRole('option', { name: /qwen2.5:1.5b/ });
+it('fills the composer from an example prompt without sending', async () => {
+  renderPage();
+  const user = userEvent.setup();
+  await screen.findByRole('option', { name: /qwen2.5:1.5b/ });
 
-    await user.click(
-      screen.getByRole('button', {
-        name: 'Explain how Server-Sent Events work in simple terms',
-      }),
-    );
+  await user.click(
+    screen.getByRole('button', {
+      name: 'Explain how Server-Sent Events work in simple terms',
+    }),
+  );
 
-    const input = screen.getByLabelText('Message');
-    expect(input).toHaveValue(
-      'Explain how Server-Sent Events work in simple terms',
-    );
-    expect(input).toHaveFocus();
-    expect(api.createChat).not.toHaveBeenCalled();
-    expect(api.streamMessage).not.toHaveBeenCalled();
-  });
+  const input = screen.getByLabelText('Message');
+  expect(input).toHaveValue(
+    'Explain how Server-Sent Events work in simple terms',
+  );
+  expect(input).toHaveFocus();
+  expect(api.createChat).not.toHaveBeenCalled();
+  expect(api.streamMessage).not.toHaveBeenCalled();
+});
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -4040,55 +4066,53 @@ const EXAMPLE_PROMPTS = [
 Inside `ChatPage`, after the `sendError` state:
 
 ```ts
-  const [insertion, setInsertion] = useState<ComposerInsertion | null>(null);
+const [insertion, setInsertion] = useState<ComposerInsertion | null>(null);
 ```
 
 Replace the empty-state `<div className="flex flex-1 flex-col items-center justify-center …">…</div>` with:
 
 ```tsx
-            <div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
-              <h2 className="text-2xl font-semibold text-fg">
-                How can I help today?
-              </h2>
-              <p className="mt-2 max-w-md text-sm text-fg-muted">
-                {models.isError
-                  ? 'Models could not be loaded. Check that the API and Ollama are running.'
-                  : modelList.length === 0 && !models.isPending
-                    ? 'No allowed models are installed in Ollama yet.'
-                    : 'Ask anything. Your conversation streams from a local model.'}
-              </p>
-              <ul className="mt-8 grid w-full max-w-2xl gap-2 sm:grid-cols-2">
-                {EXAMPLE_PROMPTS.map((example) => (
-                  <li key={example}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setInsertion((current) => ({
-                          id: (current?.id ?? 0) + 1,
-                          text: example,
-                        }))
-                      }
-                      className="h-full w-full rounded-xl border border-border px-4 py-3 text-left text-sm text-fg-muted hover:bg-surface hover:text-fg"
-                    >
-                      {example}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
+<div className="flex flex-1 flex-col items-center justify-center px-4 text-center">
+  <h2 className="text-2xl font-semibold text-fg">How can I help today?</h2>
+  <p className="mt-2 max-w-md text-sm text-fg-muted">
+    {models.isError
+      ? 'Models could not be loaded. Check that the API and Ollama are running.'
+      : modelList.length === 0 && !models.isPending
+        ? 'No allowed models are installed in Ollama yet.'
+        : 'Ask anything. Your conversation streams from a local model.'}
+  </p>
+  <ul className="mt-8 grid w-full max-w-2xl gap-2 sm:grid-cols-2">
+    {EXAMPLE_PROMPTS.map((example) => (
+      <li key={example}>
+        <button
+          type="button"
+          onClick={() =>
+            setInsertion((current) => ({
+              id: (current?.id ?? 0) + 1,
+              text: example,
+            }))
+          }
+          className="h-full w-full rounded-xl border border-border px-4 py-3 text-left text-sm text-fg-muted hover:bg-surface hover:text-fg"
+        >
+          {example}
+        </button>
+      </li>
+    ))}
+  </ul>
+</div>
 ```
 
 Pass the insertion to the composer:
 
 ```tsx
-          <Composer
-            draftKey={`draft:${scope}`}
-            isBusy={isBusy}
-            disabled={!activeModel}
-            insertion={insertion}
-            onSend={handleSend}
-            onStop={cancel}
-          />
+<Composer
+  draftKey={`draft:${scope}`}
+  isBusy={isBusy}
+  disabled={!activeModel}
+  insertion={insertion}
+  onSend={handleSend}
+  onStop={cancel}
+/>
 ```
 
 - [ ] **Step 4: Run the tests to verify they pass**
@@ -4115,6 +4139,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 10: Light/dark/system theme toggle
 
 **Files:**
+
 - Create: `apps/web/src/lib/theme.ts`
 - Create: `apps/web/src/features/chat/theme-toggle.tsx`
 - Modify: `apps/web/src/features/chat/chat-sidebar.tsx`
@@ -4122,6 +4147,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Test: `apps/web/src/lib/theme.test.ts`, `apps/web/src/features/chat/theme-toggle.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `readStorage`, `writeStorage` (Task 8); `SunIcon`, `MoonIcon`, `MonitorIcon` (Task 1).
 - Produces: `ThemePreference = 'system' | 'light' | 'dark'`; `THEME_STORAGE_KEY = 'theme'`; `readThemePreference(): ThemePreference`; `applyThemePreference(preference: ThemePreference): void` (sets/removes `data-theme` on `<html>` and persists). `ThemeToggle()` renders `role="group"` named `Theme` with `aria-pressed` buttons `System`, `Light`, `Dark`. System mode needs no JS listener: with no `data-theme`, CSS `color-scheme: light dark` + `light-dark()` follow the OS.
 
@@ -4244,10 +4270,7 @@ export function applyThemePreference(preference: ThemePreference): void {
 ```tsx
 import { useState } from 'react';
 import { MonitorIcon, MoonIcon, SunIcon } from '../../components/icons';
-import {
-  applyThemePreference,
-  readThemePreference,
-} from '../../lib/theme';
+import { applyThemePreference, readThemePreference } from '../../lib/theme';
 import type { ThemePreference } from '../../lib/theme';
 
 const OPTIONS = [
@@ -4302,23 +4325,23 @@ export function ThemeToggle() {
 In `apps/web/src/features/chat/chat-sidebar.tsx`, add `import { ThemeToggle } from './theme-toggle';` and, as the last child of the footer `<div className="space-y-3 border-t border-border p-3 text-sm">`, add:
 
 ```tsx
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-fg-subtle">Theme</span>
-          <ThemeToggle />
-        </div>
+<div className="flex items-center justify-between">
+  <span className="text-xs text-fg-subtle">Theme</span>
+  <ThemeToggle />
+</div>
 ```
 
 In `apps/web/index.html`, change `<html lang="en" data-theme="dark">` to `<html lang="en">` and insert as the first child of `<head>`:
 
 ```html
-    <script>
-      try {
-        var theme = localStorage.getItem('theme');
-        if (theme === 'light' || theme === 'dark') {
-          document.documentElement.dataset.theme = theme;
-        }
-      } catch (error) {}
-    </script>
+<script>
+  try {
+    var theme = localStorage.getItem('theme');
+    if (theme === 'light' || theme === 'dark') {
+      document.documentElement.dataset.theme = theme;
+    }
+  } catch (error) {}
+</script>
 ```
 
 - [ ] **Step 6: Run the tests to verify they pass**
@@ -4343,9 +4366,11 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Task 11: Restyle remaining screens with tokens
 
 **Files:**
+
 - Modify: `apps/web/src/features/chat/model-selector.tsx`, `apps/web/src/features/chat/readiness-banner.tsx`, `apps/web/src/features/auth/auth-dialog.tsx`, `apps/web/src/features/auth/account-page.tsx`
 
 **Interfaces:**
+
 - Consumes: tokens (Task 1). No API changes; existing tests (`model-selector.test.tsx`, `auth-dialog.test.tsx`) must keep passing unchanged.
 
 - [ ] **Step 1: Confirm the leftovers**
@@ -4358,38 +4383,38 @@ Expected: matches only in the four files above.
 Replace the two returns with:
 
 ```tsx
-  if (models.length === 0) {
-    return (
-      <p
-        role="status"
-        className="rounded-full bg-warning-soft px-2.5 py-1 text-xs font-medium text-warning"
-      >
-        No models available
-      </p>
-    );
-  }
-
+if (models.length === 0) {
   return (
-    <div className="flex items-center gap-2">
-      <label htmlFor={id} className="sr-only">
-        Model
-      </label>
-      <select
-        id={id}
-        value={value ?? ''}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className="rounded-lg border border-border bg-bg px-2 py-1 text-sm text-fg hover:bg-surface focus:border-accent disabled:opacity-60"
-      >
-        {models.map((model) => (
-          <option key={model.name} value={model.name}>
-            {model.name}
-            {model.default ? ' (default)' : ''}
-          </option>
-        ))}
-      </select>
-    </div>
+    <p
+      role="status"
+      className="rounded-full bg-warning-soft px-2.5 py-1 text-xs font-medium text-warning"
+    >
+      No models available
+    </p>
   );
+}
+
+return (
+  <div className="flex items-center gap-2">
+    <label htmlFor={id} className="sr-only">
+      Model
+    </label>
+    <select
+      id={id}
+      value={value ?? ''}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      className="rounded-lg border border-border bg-bg px-2 py-1 text-sm text-fg hover:bg-surface focus:border-accent disabled:opacity-60"
+    >
+      {models.map((model) => (
+        <option key={model.name} value={model.name}>
+          {model.name}
+          {model.default ? ' (default)' : ''}
+        </option>
+      ))}
+    </select>
+  </div>
+);
 ```
 
 - [ ] **Step 3: Restyle `readiness-banner.tsx`**
@@ -4397,42 +4422,43 @@ Replace the two returns with:
 Change the banner `className` to:
 
 ```tsx
-      className="border-b border-warning/30 bg-warning-soft px-4 py-2 text-sm text-warning"
+className =
+  'border-b border-warning/30 bg-warning-soft px-4 py-2 text-sm text-warning';
 ```
 
 - [ ] **Step 4: Restyle `auth-dialog.tsx`**
 
 Make these exact replacements:
 
-| Find | Replace |
-|---|---|
-| `const fieldClass =` value | `'w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-accent focus:outline-2 focus:outline-accent'` |
-| `bg-slate-950/80` | `bg-black/50` |
-| `border-slate-800 bg-slate-900 p-6` | `border-border bg-bg p-6` |
-| `text-lg font-semibold text-slate-100` | `text-lg font-semibold text-fg` |
-| `mt-1 text-sm text-slate-400` | `mt-1 text-sm text-fg-muted` |
-| `space-y-1 text-sm text-slate-300` (all 3) | `space-y-1 text-sm text-fg-muted` |
-| `text-sm text-rose-300` | `text-sm text-danger` |
-| `text-sm text-cyan-300 underline-offset-4` | `text-sm text-accent underline-offset-4` |
-| `bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300` | `bg-accent px-4 py-2 text-sm font-semibold text-accent-fg hover:bg-accent-hover` |
+| Find                                                                           | Replace                                                                                                                                                        |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `const fieldClass =` value                                                     | `'w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-accent focus:outline-2 focus:outline-accent'` |
+| `bg-slate-950/80`                                                              | `bg-black/50`                                                                                                                                                  |
+| `border-slate-800 bg-slate-900 p-6`                                            | `border-border bg-bg p-6`                                                                                                                                      |
+| `text-lg font-semibold text-slate-100`                                         | `text-lg font-semibold text-fg`                                                                                                                                |
+| `mt-1 text-sm text-slate-400`                                                  | `mt-1 text-sm text-fg-muted`                                                                                                                                   |
+| `space-y-1 text-sm text-slate-300` (all 3)                                     | `space-y-1 text-sm text-fg-muted`                                                                                                                              |
+| `text-sm text-rose-300`                                                        | `text-sm text-danger`                                                                                                                                          |
+| `text-sm text-cyan-300 underline-offset-4`                                     | `text-sm text-accent underline-offset-4`                                                                                                                       |
+| `bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300` | `bg-accent px-4 py-2 text-sm font-semibold text-accent-fg hover:bg-accent-hover`                                                                               |
 
 - [ ] **Step 5: Restyle `account-page.tsx`**
 
 Make these exact replacements (use replace-all where noted):
 
-| Find | Replace |
-|---|---|
-| `text-sm text-cyan-300 hover:underline` | `text-sm text-accent hover:underline` |
-| `text-2xl font-semibold text-slate-100` | `text-2xl font-semibold text-fg` |
-| `text-slate-400` (all) | `text-fg-muted` |
-| `text-slate-300` (all) | `text-fg-muted` |
-| `text-slate-200` (all, except the Revoke button handled below) | `text-fg` |
-| `text-slate-500` | `text-fg-subtle` |
+| Find                                                                        | Replace                                                                 |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `text-sm text-cyan-300 hover:underline`                                     | `text-sm text-accent hover:underline`                                   |
+| `text-2xl font-semibold text-slate-100`                                     | `text-2xl font-semibold text-fg`                                        |
+| `text-slate-400` (all)                                                      | `text-fg-muted`                                                         |
+| `text-slate-300` (all)                                                      | `text-fg-muted`                                                         |
+| `text-slate-200` (all, except the Revoke button handled below)              | `text-fg`                                                               |
+| `text-slate-500`                                                            | `text-fg-subtle`                                                        |
 | `border-rose-500/50 px-3 py-1.5 text-sm text-rose-300 hover:bg-rose-500/10` | `border-danger/40 px-3 py-1.5 text-sm text-danger hover:bg-danger-soft` |
-| `text-rose-300` (remaining, all) | `text-danger` |
-| `divide-slate-800 rounded-xl border border-slate-800` | `divide-border rounded-xl border border-border` |
-| `bg-emerald-400/15 px-2 py-0.5 text-xs text-emerald-300` | `bg-success-soft px-2 py-0.5 text-xs text-success` |
-| `border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800` | `border-border px-3 py-1.5 text-sm text-fg hover:bg-surface-2` |
+| `text-rose-300` (remaining, all)                                            | `text-danger`                                                           |
+| `divide-slate-800 rounded-xl border border-slate-800`                       | `divide-border rounded-xl border border-border`                         |
+| `bg-emerald-400/15 px-2 py-0.5 text-xs text-emerald-300`                    | `bg-success-soft px-2 py-0.5 text-xs text-success`                      |
+| `border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800`    | `border-border px-3 py-1.5 text-sm text-fg hover:bg-surface-2`          |
 
 Do the Revoke-button row first so the generic `text-slate-200` replacement doesn't break its match.
 
