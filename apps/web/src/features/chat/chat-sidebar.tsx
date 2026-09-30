@@ -22,6 +22,7 @@ import type {
   ChatListItemProps,
   ChatSidebarProps,
 } from './chat.types';
+import { ThemeToggle } from './theme-toggle';
 
 const secondaryButton =
   'rounded-lg border border-border px-3 py-1.5 text-fg hover:bg-surface-2';
@@ -277,6 +278,10 @@ export function ChatSidebar({
             </div>
           </div>
         )}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-fg-subtle">Theme</span>
+          <ThemeToggle />
+        </div>
       </div>
     </div>
   );
