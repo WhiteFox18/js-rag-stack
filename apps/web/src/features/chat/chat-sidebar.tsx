@@ -6,6 +6,9 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
+import { ConfirmDialog } from '../../components/confirm-dialog';
+import { PencilIcon, PlusIcon, TrashIcon } from '../../components/icons';
+import { Menu } from '../../components/menu';
 import { api, toErrorMessage } from '../../lib/api';
 import { useAuthActions } from '../auth/use-auth';
 import { groupChatsByRecency } from './chat.helpers';
@@ -15,8 +18,12 @@ import type {
   ChatSidebarProps,
 } from './chat.types';
 
+const secondaryButton =
+  'rounded-lg border border-border px-3 py-1.5 text-fg hover:bg-surface-2';
+
 function ChatListItem({ chat, active, onNavigate }: ChatListItemProps) {
   const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [title, setTitle] = useState(chat.title);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -43,7 +50,7 @@ function ChatListItem({ chat, active, onNavigate }: ChatListItemProps) {
   if (editing) {
     return (
       <li>
-        <form onSubmit={submitRename} className="px-2 py-1">
+        <form onSubmit={submitRename} className="px-1 py-0.5">
           <label className="sr-only" htmlFor={`rename-${chat.id}`}>
             Chat title
           </label>
@@ -57,7 +64,7 @@ function ChatListItem({ chat, active, onNavigate }: ChatListItemProps) {
             onKeyDown={(event) => {
               if (event.key === 'Escape') setEditing(false);
             }}
-            className="w-full rounded-md border border-cyan-400 bg-slate-950 px-2 py-1 text-sm text-slate-100"
+            className="w-full rounded-md border border-accent bg-bg px-2 py-1.5 text-sm text-fg"
           />
         </form>
       </li>
@@ -70,38 +77,48 @@ function ChatListItem({ chat, active, onNavigate }: ChatListItemProps) {
         to={`/chats/${chat.id}`}
         onClick={onNavigate}
         aria-current={active ? 'page' : undefined}
-        className={`block truncate rounded-lg px-3 py-2 pr-16 text-sm ${
+        className={`block truncate rounded-lg py-2 pr-10 pl-3 text-sm ${
           active
-            ? 'bg-slate-800 text-slate-100'
-            : 'text-slate-300 hover:bg-slate-900'
+            ? 'bg-surface-2 font-medium text-fg'
+            : 'text-fg-muted hover:bg-surface-2 hover:text-fg'
         }`}
       >
         {chat.title}
       </Link>
-      <div className="absolute inset-y-0 right-1 flex items-center gap-0.5 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
-        <button
-          type="button"
-          aria-label={`Rename ${chat.title}`}
-          onClick={() => {
-            setTitle(chat.title);
-            setEditing(true);
-          }}
-          className="rounded p-1 text-xs text-slate-400 hover:bg-slate-700 hover:text-slate-100"
-        >
-          ✎
-        </button>
-        <button
-          type="button"
-          aria-label={`Delete ${chat.title}`}
-          disabled={remove.isPending}
-          onClick={() => {
-            if (window.confirm(`Delete "${chat.title}"?`)) remove.mutate();
-          }}
-          className="rounded p-1 text-xs text-slate-400 hover:bg-slate-700 hover:text-rose-300"
-        >
-          🗑
-        </button>
+      <div className="absolute inset-y-0 right-1 flex items-center can-hover:opacity-0 can-hover:group-hover:opacity-100 can-hover:group-focus-within:opacity-100">
+        <Menu
+          label={`Actions for ${chat.title}`}
+          triggerClassName="grid size-7 place-items-center rounded-md text-fg-muted hover:bg-bg hover:text-fg"
+          items={[
+            {
+              label: 'Rename',
+              icon: <PencilIcon className="size-4" />,
+              onSelect: () => {
+                setTitle(chat.title);
+                setEditing(true);
+              },
+            },
+            {
+              label: 'Delete',
+              icon: <TrashIcon className="size-4" />,
+              tone: 'danger',
+              onSelect: () => setConfirming(true),
+            },
+          ]}
+        />
       </div>
+      {confirming ? (
+        <ConfirmDialog
+          title="Delete chat?"
+          description={`"${chat.title}" and all of its messages will be permanently deleted.`}
+          confirmLabel="Delete"
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false);
+            remove.mutate();
+          }}
+        />
+      ) : null}
     </li>
   );
 }
@@ -116,14 +133,14 @@ function ChatGroups({ activeChatId, onNavigate }: ChatGroupsProps) {
 
   if (chats.isPending) {
     return (
-      <p role="status" className="px-3 py-2 text-sm text-slate-500">
+      <p role="status" className="px-3 py-2 text-sm text-fg-subtle">
         Loading chats…
       </p>
     );
   }
   if (chats.isError) {
     return (
-      <p role="alert" className="px-3 py-2 text-sm text-rose-300">
+      <p role="alert" className="px-3 py-2 text-sm text-danger">
         {toErrorMessage(chats.error)}
       </p>
     );
@@ -136,7 +153,7 @@ function ChatGroups({ activeChatId, onNavigate }: ChatGroupsProps) {
 
   if (groups.length === 0) {
     return (
-      <p className="px-3 py-2 text-sm text-slate-500">
+      <p className="px-3 py-2 text-sm text-fg-subtle">
         No chats yet. Start a new one!
       </p>
     );
@@ -145,11 +162,11 @@ function ChatGroups({ activeChatId, onNavigate }: ChatGroupsProps) {
   return (
     <>
       {groups.map((group) => (
-        <section key={group.label} aria-label={group.label} className="mb-3">
-          <h2 className="px-3 py-1 text-xs font-medium tracking-wider text-slate-500 uppercase">
+        <section key={group.label} aria-label={group.label} className="mb-4">
+          <h2 className="px-3 py-1 text-xs font-medium tracking-wide text-fg-subtle uppercase">
             {group.label}
           </h2>
-          <ul>
+          <ul className="space-y-0.5">
             {group.chats.map((chat) => (
               <ChatListItem
                 key={chat.id}
@@ -166,7 +183,7 @@ function ChatGroups({ activeChatId, onNavigate }: ChatGroupsProps) {
           type="button"
           disabled={chats.isFetchingNextPage}
           onClick={() => void chats.fetchNextPage()}
-          className="mx-3 mb-3 text-sm text-cyan-300 hover:underline disabled:opacity-60"
+          className="mx-3 mb-3 text-sm text-accent hover:underline disabled:opacity-60"
         >
           {chats.isFetchingNextPage ? 'Loading…' : 'Show more'}
         </button>
@@ -190,25 +207,26 @@ export function ChatSidebar({
         <Link
           to="/chats"
           onClick={onNavigate}
-          className="block rounded-lg border border-slate-700 px-3 py-2 text-center text-sm font-medium text-slate-100 hover:bg-slate-900"
+          className="flex items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2 text-sm font-medium text-fg hover:bg-surface-2"
         >
-          + New chat
+          <PlusIcon className="size-4" />
+          New chat
         </Link>
       </div>
-      <nav aria-label="Chat history" className="flex-1 overflow-y-auto px-1">
+      <nav aria-label="Chat history" className="flex-1 overflow-y-auto px-2">
         <ChatGroups activeChatId={activeChatId} onNavigate={onNavigate} />
       </nav>
-      <div className="border-t border-slate-800 p-3 text-sm">
+      <div className="space-y-3 border-t border-border p-3 text-sm">
         {user ? (
           <div className="space-y-2">
-            <p className="truncate text-slate-300">
+            <p className="truncate font-medium text-fg">
               {user.displayName ?? user.email}
             </p>
             <div className="flex gap-2">
               <Link
                 to="/account"
                 onClick={onNavigate}
-                className="rounded-lg border border-slate-700 px-3 py-1.5 text-slate-200 hover:bg-slate-900"
+                className={secondaryButton}
               >
                 Account
               </Link>
@@ -216,7 +234,7 @@ export function ChatSidebar({
                 type="button"
                 disabled={signOut.isPending}
                 onClick={() => signOut.mutate()}
-                className="rounded-lg border border-slate-700 px-3 py-1.5 text-slate-200 hover:bg-slate-900"
+                className={secondaryButton}
               >
                 Sign out
               </button>
@@ -224,21 +242,21 @@ export function ChatSidebar({
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-slate-500">
+            <p className="text-fg-muted">
               Chatting anonymously. Sign in to keep chats across devices.
             </p>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={onSignIn}
-                className="rounded-lg bg-cyan-400 px-3 py-1.5 font-semibold text-slate-950 hover:bg-cyan-300"
+                className="rounded-lg bg-accent px-3 py-1.5 font-semibold text-accent-fg hover:bg-accent-hover"
               >
                 Sign in
               </button>
               <button
                 type="button"
                 onClick={onSignUp}
-                className="rounded-lg border border-slate-700 px-3 py-1.5 text-slate-200 hover:bg-slate-900"
+                className={secondaryButton}
               >
                 Sign up
               </button>
