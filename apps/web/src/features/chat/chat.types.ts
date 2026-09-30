@@ -69,6 +69,8 @@ export interface MessageListProps {
   isLoadingOlder: boolean;
   onLoadOlder: () => void;
   scroll: ScrollTracking;
+  summary?: string | null;
+  summarizedThroughMessageId?: string | null;
 }
 
 export interface ModelSelectorProps {

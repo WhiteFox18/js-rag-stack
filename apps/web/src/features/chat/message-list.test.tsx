@@ -156,6 +156,35 @@ describe('MessageList', () => {
     expect(screen.queryByRole('button', { name: 'Jump to latest' })).toBeNull();
   });
 
+  it('marks where the summarized part of the conversation ends', async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness
+        {...base}
+        pending={null}
+        messages={[
+          makeMessage({ id: 'u1', content: 'Old question' }),
+          makeMessage({ id: 'a1', role: 'assistant', content: 'Old answer' }),
+          makeMessage({ id: 'u2', content: 'New question' }),
+        ]}
+        summary="The user asked an old question."
+        summarizedThroughMessageId="a1"
+      />,
+    );
+
+    const divider = screen.getByText('Earlier messages summarized');
+    const items = screen.getAllByRole('listitem');
+    const dividerIndex = items.findIndex((item) => item.contains(divider));
+    expect(items[dividerIndex - 1]).toHaveTextContent('Old answer');
+    expect(items[dividerIndex + 1]).toHaveTextContent('New question');
+
+    expect(
+      screen.getByText('The user asked an old question.'),
+    ).not.toBeVisible();
+    await user.click(divider);
+    expect(screen.getByText('The user asked an old question.')).toBeVisible();
+  });
+
   it('loads earlier messages on demand', async () => {
     const onLoadOlder = vi.fn();
     render(

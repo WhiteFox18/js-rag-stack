@@ -178,6 +178,10 @@ export function ChatPage() {
               isLoadingOlder={chat.isFetchingNextPage}
               onLoadOlder={() => void chat.fetchNextPage()}
               scroll={scroll}
+              summary={chatContext?.summary ?? null}
+              summarizedThroughMessageId={
+                chatContext?.summarizedThroughMessageId ?? null
+              }
             />
           )}
 

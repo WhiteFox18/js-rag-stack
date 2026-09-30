@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Fragment, Suspense, lazy } from 'react';
 import { CopyButton } from '../../components/copy-button';
 import { ArrowDownIcon } from '../../components/icons';
 import {
@@ -84,6 +84,23 @@ function SummarizingIndicator() {
   );
 }
 
+function SummaryDivider({ summary }: { summary: string }) {
+  return (
+    <li>
+      <details className="group/summary text-center text-xs text-fg-subtle">
+        <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 select-none hover:text-fg">
+          <span aria-hidden="true" className="h-px w-10 bg-border" />
+          Earlier messages summarized
+          <span aria-hidden="true" className="h-px w-10 bg-border" />
+        </summary>
+        <p className="mx-auto mt-2 max-w-2xl rounded-lg bg-surface-2 px-4 py-3 text-left text-sm leading-6 whitespace-pre-wrap text-fg-muted">
+          {summary}
+        </p>
+      </details>
+    </li>
+  );
+}
+
 function AssistantMessage({
   content,
   streaming,
@@ -145,6 +162,8 @@ export function MessageList({
   isLoadingOlder,
   onLoadOlder,
   scroll,
+  summary = null,
+  summarizedThroughMessageId = null,
 }: MessageListProps) {
   const {
     containerRef,
@@ -184,23 +203,23 @@ export function MessageList({
             aria-label="Conversation"
             className="space-y-8"
           >
-            {serverMessages.map((message) =>
-              message.role === 'user' ? (
-                <UserMessage
-                  key={message.id}
-                  id={message.id}
-                  content={message.content}
-                />
-              ) : (
-                <AssistantMessage
-                  key={message.id}
-                  content={message.content}
-                  streaming={false}
-                  status={message.status}
-                  details={describeTokens(message)}
-                />
-              ),
-            )}
+            {serverMessages.map((message) => (
+              <Fragment key={message.id}>
+                {message.role === 'user' ? (
+                  <UserMessage id={message.id} content={message.content} />
+                ) : (
+                  <AssistantMessage
+                    content={message.content}
+                    streaming={false}
+                    status={message.status}
+                    details={describeTokens(message)}
+                  />
+                )}
+                {summary && message.id === summarizedThroughMessageId ? (
+                  <SummaryDivider summary={summary} />
+                ) : null}
+              </Fragment>
+            ))}
             {isPendingVisible(pending) ? (
               <>
                 <UserMessage
