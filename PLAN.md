@@ -544,6 +544,8 @@ Verification: `qwen2.5:1.5b` streams through the API; full prior history reaches
 
 ### Phase 5 - Chat SPA
 
+**Status: Complete (September 30, 2026).**
+
 - Build the responsive ChatGPT-style shell using Tailwind only.
 - Add model selection, chat CRUD, streamed rendering, cancellation, history pagination, auth flows, and account sessions.
 - Add accessible loading, empty, degraded, and error states.
