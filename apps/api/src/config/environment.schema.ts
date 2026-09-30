@@ -48,6 +48,23 @@ const environmentSchema = z
       .int()
       .positive()
       .default(100_000),
+    CHAT_CONTEXT_SUMMARIZE_AT_RATIO: z.coerce
+      .number()
+      .gt(0)
+      .lt(1)
+      .default(0.75),
+    CHAT_CONTEXT_TARGET_RATIO: z.coerce.number().gt(0).lt(1).default(0.4),
+    CHAT_CONTEXT_KEEP_RECENT_MESSAGES: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .default(4),
+    CHAT_CONTEXT_CHARS_PER_TOKEN: z.coerce.number().positive().default(3),
+    CHAT_CONTEXT_SUMMARY_MAX_RATIO: z.coerce
+      .number()
+      .gt(0)
+      .lt(0.5)
+      .default(0.1),
     CHAT_MAX_CONCURRENT_GENERATIONS_PER_PRINCIPAL: z.coerce
       .number()
       .int()
@@ -86,6 +103,18 @@ const environmentSchema = z
       .transform((value) => value || undefined),
   })
   .superRefine((environment, context) => {
+    if (
+      environment.CHAT_CONTEXT_TARGET_RATIO >=
+      environment.CHAT_CONTEXT_SUMMARIZE_AT_RATIO
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['CHAT_CONTEXT_TARGET_RATIO'],
+        message:
+          'CHAT_CONTEXT_TARGET_RATIO must be lower than CHAT_CONTEXT_SUMMARIZE_AT_RATIO',
+      });
+    }
+
     if (environment.NODE_ENV !== 'production') {
       return;
     }

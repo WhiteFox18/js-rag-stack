@@ -37,4 +37,22 @@ describe('validateEnvironment', () => {
       }),
     ).toThrow('must be replaced in production');
   });
+
+  it('provides context window defaults and rejects an inverted target', () => {
+    expect(validateEnvironment({})).toEqual(
+      expect.objectContaining({
+        CHAT_CONTEXT_SUMMARIZE_AT_RATIO: 0.75,
+        CHAT_CONTEXT_TARGET_RATIO: 0.4,
+        CHAT_CONTEXT_KEEP_RECENT_MESSAGES: 4,
+        CHAT_CONTEXT_CHARS_PER_TOKEN: 3,
+        CHAT_CONTEXT_SUMMARY_MAX_RATIO: 0.1,
+      }),
+    );
+    expect(() =>
+      validateEnvironment({
+        CHAT_CONTEXT_SUMMARIZE_AT_RATIO: '0.5',
+        CHAT_CONTEXT_TARGET_RATIO: '0.6',
+      }),
+    ).toThrow('CHAT_CONTEXT_TARGET_RATIO must be lower');
+  });
 });

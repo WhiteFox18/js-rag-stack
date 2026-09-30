@@ -151,3 +151,59 @@ export interface ToChatContextParams {
   summary: ConversationSummary | null;
   lastAssistantMessage: Message | null;
 }
+
+export interface ContextSettings {
+  summarizeAtRatio: number;
+  targetRatio: number;
+  keepRecentMessages: number;
+  charsPerToken: number;
+  summaryMaxRatio: number;
+}
+
+export interface ContextBudget {
+  trigger: number;
+  target: number;
+  summaryMaxTokens: number;
+  chunkTokens: number;
+}
+
+export interface PromptEstimateParams {
+  summary: string | null;
+  turns: ChatHistoryEntry[];
+  content: string;
+  charsPerToken: number;
+}
+
+export interface NeedsSummarizationParams {
+  estimate: number;
+  lastReportedTokens: number | null;
+  contentTokens: number;
+  trigger: number;
+}
+
+export interface SelectTurnsToFoldParams {
+  turns: ChatHistoryEntry[];
+  content: string;
+  keepRecent: number;
+  target: number;
+  summaryTokens: number;
+  charsPerToken: number;
+}
+
+export interface ChunkEntriesParams {
+  entries: ChatHistoryEntry[];
+  budget: number;
+  charsPerToken: number;
+}
+
+export interface SummaryRequestParams {
+  previousSummary: string | null;
+  entries: ChatHistoryEntry[];
+  maxEntryChars: number;
+}
+
+export interface PromptMessagesParams {
+  summary: string | null;
+  turns: ChatHistoryEntry[];
+  content: string;
+}
