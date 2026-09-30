@@ -44,6 +44,7 @@ export interface ChatSidebarProps {
   onNavigate: () => void;
   onSignIn: () => void;
   onSignUp: () => void;
+  onCollapse: () => void;
 }
 
 export interface ChatListItemProps {

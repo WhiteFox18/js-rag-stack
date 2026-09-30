@@ -30,6 +30,7 @@ function renderSidebar() {
         onNavigate={vi.fn()}
         onSignIn={vi.fn()}
         onSignUp={vi.fn()}
+        onCollapse={vi.fn()}
       />
     ),
   });

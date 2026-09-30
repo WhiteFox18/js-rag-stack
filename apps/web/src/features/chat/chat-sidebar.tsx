@@ -7,7 +7,12 @@ import {
 } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { ConfirmDialog } from '../../components/confirm-dialog';
-import { PencilIcon, PlusIcon, TrashIcon } from '../../components/icons';
+import {
+  PanelLeftIcon,
+  PencilIcon,
+  PlusIcon,
+  TrashIcon,
+} from '../../components/icons';
 import { Menu } from '../../components/menu';
 import { api, toErrorMessage } from '../../lib/api';
 import { useAuthActions } from '../auth/use-auth';
@@ -198,20 +203,29 @@ export function ChatSidebar({
   onNavigate,
   onSignIn,
   onSignUp,
+  onCollapse,
 }: ChatSidebarProps) {
   const { signOut } = useAuthActions();
 
   return (
     <div className="flex h-full flex-col">
-      <div className="p-3">
+      <div className="flex items-center gap-2 p-3">
         <Link
           to="/chats"
           onClick={onNavigate}
-          className="flex items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2 text-sm font-medium text-fg hover:bg-surface-2"
+          className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2 text-sm font-medium text-fg hover:bg-surface-2"
         >
           <PlusIcon className="size-4" />
           New chat
         </Link>
+        <button
+          type="button"
+          aria-label="Hide sidebar"
+          onClick={onCollapse}
+          className="hidden size-9 place-items-center rounded-lg text-fg-muted hover:bg-surface-2 hover:text-fg md:grid"
+        >
+          <PanelLeftIcon className="size-4" />
+        </button>
       </div>
       <nav aria-label="Chat history" className="flex-1 overflow-y-auto px-2">
         <ChatGroups activeChatId={activeChatId} onNavigate={onNavigate} />
