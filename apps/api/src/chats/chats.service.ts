@@ -7,9 +7,15 @@ import { ConfigService } from '@nestjs/config';
 import type { AppEnvironment } from '../config/environment.schema';
 import { OllamaService } from '../ollama/ollama.service';
 import { ChatHistoryService } from './chat-history.service';
-import { deriveChatTitle, toChatMessage, toChatSummary } from './chats.helpers';
+import {
+  deriveChatTitle,
+  toChatContext,
+  toChatMessage,
+  toChatSummary,
+} from './chats.helpers';
 import { ChatOwnershipService } from './chat-ownership.service';
 import { ChatsRepository } from './chats.repository';
+import { ConversationSummaryRepository } from './conversation-summary.repository';
 import type {
   ChatDetail,
   ChatPage,
@@ -28,6 +34,7 @@ export class ChatsService {
     private readonly ownership: ChatOwnershipService,
     private readonly history: ChatHistoryService,
     private readonly ollama: OllamaService,
+    private readonly summaries: ConversationSummaryRepository,
     config: ConfigService<AppEnvironment, true>,
   ) {
     this.maxMessageChars = config.get('CHAT_MAX_MESSAGE_CHARS', {
@@ -67,7 +74,11 @@ export class ChatsService {
 
   async get(params: ListMessagesParams): Promise<ChatDetail> {
     const chat = await this.ownership.findOwnedChat(params);
-    const messages = await this.repository.listMessages(params);
+    const [messages, summary, lastAssistantMessage] = await Promise.all([
+      this.repository.listMessages(params),
+      this.summaries.findByChatId(chat.id),
+      this.repository.findLastCompletedAssistantMessage(chat.id),
+    ]);
     const hasMore = messages.length > params.limit;
     const page = messages.slice(0, params.limit);
     const nextCursor = hasMore ? (page.at(-1)?.id ?? null) : null;
@@ -75,6 +86,11 @@ export class ChatsService {
       ...toChatSummary(chat),
       messages: page.reverse().map(toChatMessage),
       nextCursor,
+      context: toChatContext({
+        maxTokens: chat.selected_model.max_context,
+        summary,
+        lastAssistantMessage,
+      }),
     };
   }
 

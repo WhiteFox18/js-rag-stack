@@ -208,4 +208,11 @@ export class ChatsRepository {
       },
     });
   }
+
+  findLastCompletedAssistantMessage(chatId: string): Promise<Message | null> {
+    return this.prisma.message.findFirst({
+      where: { chat_id: chatId, role: 'ASSISTANT', status: 'COMPLETED' },
+      orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+    });
+  }
 }

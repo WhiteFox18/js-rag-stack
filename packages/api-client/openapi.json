@@ -837,6 +837,29 @@
           "updatedAt"
         ]
       },
+      "ChatContextDto": {
+        "type": "object",
+        "properties": {
+          "usedTokens": {
+            "type": "object",
+            "nullable": true
+          },
+          "maxTokens": {
+            "type": "number"
+          },
+          "summary": {
+            "type": "object",
+            "nullable": true
+          },
+          "summarizedThroughMessageId": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "maxTokens"
+        ]
+      },
       "ChatDetailDto": {
         "type": "object",
         "properties": {
@@ -871,6 +894,9 @@
           "nextCursor": {
             "type": "object",
             "nullable": true
+          },
+          "context": {
+            "$ref": "#/components/schemas/ChatContextDto"
           }
         },
         "required": [
@@ -880,7 +906,8 @@
           "createdAt",
           "updatedAt",
           "lastMessageAt",
-          "messages"
+          "messages",
+          "context"
         ]
       },
       "UpdateChatDto": {
@@ -926,11 +953,16 @@
           },
           "default": {
             "type": "boolean"
+          },
+          "maxContext": {
+            "type": "number",
+            "example": 8192
           }
         },
         "required": [
           "name",
-          "default"
+          "default",
+          "maxContext"
         ]
       },
       "ModelsResponseDto": {

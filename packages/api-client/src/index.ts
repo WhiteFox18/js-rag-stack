@@ -1,4 +1,5 @@
 import type {
+  ChatContext,
   ChatMessage,
   ChatStreamEvent,
   ChatSummary,
@@ -53,6 +54,7 @@ export interface SignInInput {
 export interface ChatPage {
   chats: ChatSummary[];
   nextCursor: string | null;
+  context: ChatContext;
 }
 
 export interface ChatDetail extends ChatSummary {

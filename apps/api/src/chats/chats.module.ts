@@ -4,6 +4,7 @@ import { ChatOwnershipService } from './chat-ownership.service';
 import { RedisLockService } from './redis-lock.service';
 import { ChatsRepository } from './chats.repository';
 import { ChatsController } from './chats.controller';
+import { ConversationSummaryRepository } from './conversation-summary.repository';
 import { ChatsService } from './chats.service';
 import { ChatStreamService } from './chat-stream.service';
 import { OllamaModule } from '../ollama/ollama.module';
@@ -16,10 +17,16 @@ import { AnonymousSessionsModule } from '../anonymous-sessions/anonymous-session
     ChatHistoryService,
     ChatOwnershipService,
     ChatsRepository,
+    ConversationSummaryRepository,
     RedisLockService,
     ChatsService,
     ChatStreamService,
   ],
-  exports: [ChatHistoryService, ChatOwnershipService, RedisLockService],
+  exports: [
+    ChatHistoryService,
+    ChatOwnershipService,
+    ConversationSummaryRepository,
+    RedisLockService,
+  ],
 })
 export class ChatsModule {}

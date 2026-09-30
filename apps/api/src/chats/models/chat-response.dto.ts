@@ -34,8 +34,17 @@ export class ChatPageDto {
   @ApiPropertyOptional({ nullable: true }) nextCursor!: string | null;
 }
 
+export class ChatContextDto {
+  @ApiPropertyOptional({ nullable: true }) usedTokens!: number | null;
+  @ApiProperty() maxTokens!: number;
+  @ApiPropertyOptional({ nullable: true }) summary!: string | null;
+  @ApiPropertyOptional({ nullable: true })
+  summarizedThroughMessageId!: string | null;
+}
+
 export class ChatDetailDto extends ChatSummaryDto {
   @ApiProperty({ type: ChatMessageDto, isArray: true })
   messages!: ChatMessageDto[];
   @ApiPropertyOptional({ nullable: true }) nextCursor!: string | null;
+  @ApiProperty({ type: ChatContextDto }) context!: ChatContextDto;
 }

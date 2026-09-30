@@ -1,8 +1,12 @@
-import type { ChatMessage, ChatSummary } from '@js-rag-stack/contracts';
+import type {
+  ChatContext,
+  ChatMessage,
+  ChatSummary,
+} from '@js-rag-stack/contracts';
 import type { Message } from '../generated/prisma/client';
 import type { RequestPrincipal } from '../common/models/request-principal';
 import { HttpException } from '@nestjs/common';
-import type { ChatWithModel } from './chats.types';
+import type { ChatWithModel, ToChatContextParams } from './chats.types';
 
 export function getOwnerFilter(
   principal: RequestPrincipal,
@@ -91,5 +95,23 @@ export function getPublicStreamError(error: unknown): {
   return {
     code: 'GENERATION_FAILED',
     message: 'The generation failed.',
+  };
+}
+
+export function toChatContext({
+  maxTokens,
+  summary,
+  lastAssistantMessage,
+}: ToChatContextParams): ChatContext {
+  const promptTokens = lastAssistantMessage?.prompt_tokens ?? null;
+  const completionTokens = lastAssistantMessage?.completion_tokens ?? null;
+  return {
+    usedTokens:
+      promptTokens === null || completionTokens === null
+        ? null
+        : promptTokens + completionTokens,
+    maxTokens,
+    summary: summary?.content ?? null,
+    summarizedThroughMessageId: summary?.summarized_through_message_id ?? null,
   };
 }

@@ -16,6 +16,7 @@ export type StreamEventName =
 export interface ModelInfo {
   name: string;
   default: boolean;
+  maxContext: number;
 }
 
 export interface ModelsResponse {
@@ -46,6 +47,13 @@ export interface ChatSummary {
   createdAt: string;
   updatedAt: string;
   lastMessageAt: string;
+}
+
+export interface ChatContext {
+  usedTokens: number | null;
+  maxTokens: number;
+  summary: string | null;
+  summarizedThroughMessageId: string | null;
 }
 
 export interface StreamStartedEvent {

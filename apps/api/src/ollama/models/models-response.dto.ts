@@ -6,6 +6,9 @@ export class ModelDto {
 
   @ApiProperty()
   default!: boolean;
+
+  @ApiProperty({ example: 8192 })
+  maxContext!: number;
 }
 
 export class ModelsResponseDto {

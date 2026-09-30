@@ -10,6 +10,7 @@ import {
 } from '../src/config/environment.schema';
 import { encodeSseEvent, encodeSseHeartbeat } from '../src/chats/sse.helpers';
 import { ChatStreamService } from '../src/chats/chat-stream.service';
+import { toChatContext } from '../src/chats/chats.helpers';
 import { ChatsService } from '../src/chats/chats.service';
 import { HealthService } from '../src/health/health.service';
 
@@ -335,6 +336,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
       {} as never,
       {} as never,
       ollama as never,
+      {} as never,
       config,
     );
 
@@ -349,6 +351,74 @@ describe('phase 4 Ollama and SSE contracts', () => {
     expect(createChat).toHaveBeenCalledWith(
       expect.objectContaining({ selectedModelId: 'model-qwen2.5:1.5b' }),
     );
+  });
+
+  it('reports context usage from the last completed reply and the summary', () => {
+    const now = new Date('2026-06-14T12:00:00.000Z');
+    expect(
+      toChatContext({
+        maxTokens: 8192,
+        summary: {
+          id: 'summary-id',
+          chat_id: 'chat-id',
+          content: 'Earlier: the user likes Rust.',
+          summarized_through_message_id: 'message-4',
+          token_count: 12,
+          created_at: now,
+          updated_at: now,
+        },
+        lastAssistantMessage: createAssistantMessage('Hi'),
+      }),
+    ).toEqual({
+      usedTokens: 14,
+      maxTokens: 8192,
+      summary: 'Earlier: the user likes Rust.',
+      summarizedThroughMessageId: 'message-4',
+    });
+    expect(
+      toChatContext({
+        maxTokens: 8192,
+        summary: null,
+        lastAssistantMessage: null,
+      }),
+    ).toEqual({
+      usedTokens: null,
+      maxTokens: 8192,
+      summary: null,
+      summarizedThroughMessageId: null,
+    });
+  });
+
+  it('returns the chat context with the chat detail', async () => {
+    const repository = {
+      listMessages: jest.fn().mockResolvedValue([]),
+      findLastCompletedAssistantMessage: jest
+        .fn()
+        .mockResolvedValue(createAssistantMessage('Hi')),
+    };
+    const service = new ChatsService(
+      repository as never,
+      {
+        findOwnedChat: jest.fn().mockResolvedValue(createChatRecord()),
+      } as never,
+      {} as never,
+      {} as never,
+      { findByChatId: jest.fn().mockResolvedValue(null) } as never,
+      config,
+    );
+
+    const detail = await service.get({
+      chatId: 'chat-id',
+      principal: { type: 'anonymous', anonymous_session_id: 'anonymous-id' },
+      limit: 50,
+    });
+
+    expect(detail.context).toEqual({
+      usedTokens: 14,
+      maxTokens: 8192,
+      summary: null,
+      summarizedThroughMessageId: null,
+    });
   });
 
   it('reports Ollama downtime as degraded without failing core readiness', async () => {

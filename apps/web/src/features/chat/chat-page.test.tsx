@@ -39,7 +39,7 @@ describe('ChatPage', () => {
     vi.clearAllMocks();
     localStorage.clear();
     api.getModels.mockResolvedValue({
-      models: [{ name: 'qwen2.5:1.5b', default: true }],
+      models: [{ name: 'qwen2.5:1.5b', default: true, maxContext: 8192 }],
     });
   });
 
@@ -220,7 +220,7 @@ describe('ChatPage prompt navigator', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.getModels.mockResolvedValue({
-      models: [{ name: 'qwen2.5:1.5b', default: true }],
+      models: [{ name: 'qwen2.5:1.5b', default: true, maxContext: 8192 }],
     });
   });
 

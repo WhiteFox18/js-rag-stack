@@ -1,10 +1,15 @@
 import type {
+  ChatContext,
   ChatMessage,
   ChatStreamEvent,
   ChatSummary,
 } from '@js-rag-stack/contracts';
 import type { RequestPrincipal } from '../common/models/request-principal';
-import type { Message, Prisma } from '../generated/prisma/client';
+import type {
+  ConversationSummary,
+  Message,
+  Prisma,
+} from '../generated/prisma/client';
 import type { RedisService } from '../redis/redis.service';
 
 export type ChatWithModel = Prisma.ChatGetPayload<{
@@ -120,6 +125,7 @@ export interface ChatPage {
 export interface ChatDetail extends ChatSummary {
   messages: ChatMessage[];
   nextCursor: string | null;
+  context: ChatContext;
 }
 
 export interface GenerationMessages {
@@ -131,4 +137,17 @@ export interface MapChatDetailParams {
   chat: ChatWithModel;
   messages: Message[];
   nextCursor: string | null;
+}
+
+export interface UpsertConversationSummaryParams {
+  chatId: string;
+  content: string;
+  summarizedThroughMessageId: string;
+  tokenCount: number;
+}
+
+export interface ToChatContextParams {
+  maxTokens: number;
+  summary: ConversationSummary | null;
+  lastAssistantMessage: Message | null;
 }

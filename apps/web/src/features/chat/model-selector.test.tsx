@@ -9,8 +9,8 @@ describe('ModelSelector', () => {
     render(
       <ModelSelector
         models={[
-          { name: 'a', default: true },
-          { name: 'b', default: false },
+          { name: 'a', default: true, maxContext: 8192 },
+          { name: 'b', default: false, maxContext: 8192 },
         ]}
         value="a"
         disabled={false}

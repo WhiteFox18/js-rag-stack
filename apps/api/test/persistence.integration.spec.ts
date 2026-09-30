@@ -8,6 +8,7 @@ import { AnonymousSessionsService } from '../src/anonymous-sessions/anonymous-se
 import { ChatHistoryService } from '../src/chats/chat-history.service';
 import { ChatOwnershipService } from '../src/chats/chat-ownership.service';
 import { ChatsRepository } from '../src/chats/chats.repository';
+import { ConversationSummaryRepository } from '../src/chats/conversation-summary.repository';
 import { RedisLockService } from '../src/chats/redis-lock.service';
 import {
   type AppEnvironment,
@@ -314,6 +315,64 @@ describe('persistence foundation', () => {
       { role: 'user', content: 'last' },
       { role: 'assistant', content: 'reply to last', model: 'qwen2.5:1.5b' },
     ]);
+  });
+
+  it('upserts one conversation summary per chat and finds the last completed reply', async () => {
+    const summaries = new ConversationSummaryRepository(prisma);
+    const chats_repository = new ChatsRepository(prisma);
+    const session = await createAnonymousSession();
+    const chat = await prisma.chat.create({
+      data: {
+        anonymous_session_id: session.id,
+        title: 'Summary',
+        selected_model_id: model_id,
+      },
+    });
+    const reply = await prisma.message.create({
+      data: {
+        chat_id: chat.id,
+        role: 'ASSISTANT',
+        status: 'COMPLETED',
+        content: 'done',
+        model: 'qwen2.5:1.5b',
+        prompt_tokens: 100,
+        completion_tokens: 20,
+        token_count_source: 'OLLAMA_REPORTED',
+      },
+    });
+    await prisma.message.create({
+      data: {
+        chat_id: chat.id,
+        role: 'ASSISTANT',
+        status: 'FAILED',
+        content: '',
+        model: 'qwen2.5:1.5b',
+        token_count_source: 'UNKNOWN',
+      },
+    });
+
+    await expect(
+      chats_repository.findLastCompletedAssistantMessage(chat.id),
+    ).resolves.toEqual(expect.objectContaining({ id: reply.id }));
+    await expect(summaries.findByChatId(chat.id)).resolves.toBeNull();
+
+    await summaries.upsert({
+      chatId: chat.id,
+      content: 'first',
+      summarizedThroughMessageId: reply.id,
+      tokenCount: 3,
+    });
+    const updated = await summaries.upsert({
+      chatId: chat.id,
+      content: 'second',
+      summarizedThroughMessageId: reply.id,
+      tokenCount: 4,
+    });
+
+    expect(updated.content).toBe('second');
+    await expect(
+      prisma.conversationSummary.count({ where: { chat_id: chat.id } }),
+    ).resolves.toBe(1);
   });
 
   it('does not allow two holders of the same Redis lock', async () => {
