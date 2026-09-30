@@ -87,3 +87,14 @@ export interface ComposerProps {
 export interface ReadinessBannerProps {
   readiness: ReadinessResponse;
 }
+
+export interface CodeBlockProps {
+  code: string;
+  lang: string | null;
+  streaming: boolean;
+}
+
+export interface MarkdownContentProps {
+  content: string;
+  streaming?: boolean;
+}
