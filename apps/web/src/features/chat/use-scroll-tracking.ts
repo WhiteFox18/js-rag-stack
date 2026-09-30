@@ -156,10 +156,9 @@ export function useScrollTracking({
     if (!container) return;
     pinnedRef.current = true;
     setIsAtBottom(true);
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior: scrollBehavior(),
-    });
+    // Instant: a smooth animation fires intermediate scroll events that would
+    // unpin the view if streaming starts mid-scroll.
+    container.scrollTo({ top: container.scrollHeight, behavior: 'auto' });
   }, [container]);
 
   const preserveScrollPosition = useCallback(() => {

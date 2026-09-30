@@ -150,4 +150,32 @@ describe('useScrollTracking', () => {
     triggerResize();
     expect(geometry.scrollTop).toBe(1300);
   });
+
+  it('scrolls to the bottom instantly so a smooth animation cannot unpin it', () => {
+    render(<Harness />);
+    const container = screen.getByTestId('container');
+    const geometry = mockScrollGeometry(container, {
+      scrollHeight: 1000,
+      clientHeight: 500,
+      scrollTop: 100,
+    });
+    fireEvent.scroll(container);
+    container.scrollTo = ((options: ScrollToOptions) => {
+      if (options.behavior === 'smooth') {
+        // A smooth animation reports intermediate positions and lands later.
+        geometry.scrollTop = 300;
+        container.dispatchEvent(new Event('scroll'));
+        return;
+      }
+      geometry.scrollTop = options.top ?? 0;
+      container.dispatchEvent(new Event('scroll'));
+    }) as typeof container.scrollTo;
+
+    fireEvent.click(screen.getByRole('button', { name: 'bottom' }));
+    expect(text('at-bottom')).toBe('true');
+
+    geometry.scrollHeight = 1400;
+    triggerResize();
+    expect(geometry.scrollTop).toBe(1400);
+  });
 });
