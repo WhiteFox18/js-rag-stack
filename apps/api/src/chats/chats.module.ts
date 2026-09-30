@@ -5,6 +5,7 @@ import { RedisLockService } from './redis-lock.service';
 import { ChatsRepository } from './chats.repository';
 import { ChatsController } from './chats.controller';
 import { ConversationSummaryRepository } from './conversation-summary.repository';
+import { ContextWindowService } from './context-window.service';
 import { ChatsService } from './chats.service';
 import { ChatStreamService } from './chat-stream.service';
 import { OllamaModule } from '../ollama/ollama.module';
@@ -21,6 +22,7 @@ import { AnonymousSessionsModule } from '../anonymous-sessions/anonymous-session
     RedisLockService,
     ChatsService,
     ChatStreamService,
+    ContextWindowService,
   ],
   exports: [
     ChatHistoryService,

@@ -8,8 +8,10 @@ import type { RequestPrincipal } from '../common/models/request-principal';
 import type {
   ConversationSummary,
   Message,
+  Model,
   Prisma,
 } from '../generated/prisma/client';
+import type { OllamaHistoryMessage } from '../ollama/ollama.types';
 import type { RedisService } from '../redis/redis.service';
 
 export type ChatWithModel = Prisma.ChatGetPayload<{
@@ -206,4 +208,27 @@ export interface PromptMessagesParams {
   summary: string | null;
   turns: ChatHistoryEntry[];
   content: string;
+}
+
+export interface BuildPromptParams {
+  chatId: string;
+  model: Model;
+  history: ChatHistoryEntry[];
+  content: string;
+  signal: AbortSignal;
+  onSummarizing: () => void;
+}
+
+export interface BuiltPrompt {
+  messages: OllamaHistoryMessage[];
+  summary: ConversationSummary | null;
+}
+
+export interface SummarizeParams {
+  chatId: string;
+  model: Model;
+  previous: ConversationSummary | null;
+  folded: ChatHistoryEntry[];
+  budget: ContextBudget;
+  signal: AbortSignal;
 }
