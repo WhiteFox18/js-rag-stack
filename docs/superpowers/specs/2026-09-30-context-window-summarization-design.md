@@ -83,12 +83,12 @@ model Chat {
   // ...existing fields, minus selected_model
   selected_model_id String       @db.Uuid
   selected_model    Model        @relation("model_chats", fields: [selected_model_id], references: [id], onDelete: Restrict)
-  summary           ChatSummary? @relation("chat_summary")
+  conversation_summary ConversationSummary? @relation("chat_conversation_summary")
 
   @@index([selected_model_id])
 }
 
-model ChatSummary {
+model ConversationSummary {
   id                            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   chat_id                       String   @unique @db.Uuid
   content                       String   @db.Text
@@ -96,18 +96,18 @@ model ChatSummary {
   token_count                   Int
   created_at                    DateTime @default(now()) @db.Timestamptz(3)
   updated_at                    DateTime @updatedAt @db.Timestamptz(3)
-  chat                          Chat     @relation("chat_summary", fields: [chat_id], references: [id], onDelete: Cascade)
-  summarized_through_message    Message  @relation("summary_through_message", fields: [summarized_through_message_id], references: [id], onDelete: Cascade)
+  chat                          Chat     @relation("chat_conversation_summary", fields: [chat_id], references: [id], onDelete: Cascade)
+  summarized_through_message    Message  @relation("conversation_summary_through_message", fields: [summarized_through_message_id], references: [id], onDelete: Cascade)
 
-  @@map("chat_summary")
+  @@map("conversation_summary")
 }
 ```
 
-`Message` gains the back-relation field for `summary_through_message`.
+`Message` gains the back-relation field for `conversation_summary_through_message`.
 
-`Model` may collide with Prisma-generated names. Verify on the first
-`prisma generate`; if it does, rename the Prisma model to `LlmModel` and keep
-`@@map("model")`.
+`Model` was verified to generate cleanly with Prisma 7.8 (`prisma.model`).
+The summary model is named `ConversationSummary` (table `conversation_summary`)
+because `ChatSummary` is already the contracts type for chat list items.
 
 ### Migration (single, hand-reviewed)
 
@@ -116,7 +116,7 @@ model ChatSummary {
    `chat.selected_model` not already present, so the backfill cannot fail.
 3. Add `chat.selected_model_id` nullable, backfill by joining on name, set
    `NOT NULL`, add FK (`ON DELETE RESTRICT`) and index, drop `selected_model`.
-4. Create `chat_summary` with its unique index and FKs.
+4. Create `conversation_summary` with its unique index and FKs.
 
 ## 5. Model registry (`apps/api/src/ollama`)
 
@@ -126,7 +126,7 @@ model ChatSummary {
     `{ name, default, maxContext }`.
   - `assertAllowed(name)` becomes async and returns the `Model` row (throws
     `MODEL_NOT_ALLOWED` if no row).
-  - `onModuleInit` checks that `OLLAMA_DEFAULT_MODEL` has a row; throws
+  - `onApplicationBootstrap` checks that `OLLAMA_DEFAULT_MODEL` has a row; throws
     otherwise so the API fails fast.
 - `environment.schema.ts`: remove `OLLAMA_ALLOWED_MODELS` and its refinement;
   remove `CHAT_MAX_HISTORY_MESSAGES` and `CHAT_MAX_HISTORY_CHARS`; add:
@@ -145,10 +145,10 @@ model ChatSummary {
 - `OllamaHistoryMessage.role` gains `'system'`.
 - `StreamOllamaChatParams` gains `contextTokens: number` → sent as
   `options.num_ctx`.
-- New non-streaming `complete({ model, messages, contextTokens, maxTokens, signal })`
-  returning `{ content, promptTokens, completionTokens }`, sending
-  `stream: false` and `options.num_predict = maxTokens`. Same timeout and error
-  mapping as `streamChat`.
+- New `complete({ model, messages, contextTokens, maxTokens, signal })`
+  returning `{ content, promptTokens, completionTokens }` with
+  `options.num_predict = maxTokens`. It streams internally and collects the
+  text, so the first-token/idle timeouts and error mapping of `streamChat` apply.
 
 ## 7. Context engine (`apps/api/src/chats`)
 
@@ -164,7 +164,7 @@ model ChatSummary {
     to fold so the remaining prompt is ≤ target, never folding the last
     `keepRecent` messages and never splitting a user/assistant pair.
   - `chunkForSummarization({ previousSummary, turns, budget })`
-- `chat-summary.repository.ts` — `findByChatId`, `upsert`.
+- `conversation-summary.repository.ts` — `findByChatId`, `upsert`.
 - `context-window.service.ts` — `buildPrompt({ chat, model, content, signal, onSummarizing })`
   returns `{ messages, summary }`.
 
@@ -191,7 +191,7 @@ Let `max = model.max_context`, `trigger = max × SUMMARIZE_AT_RATIO`,
    model via `complete()`, `num_predict = max × SUMMARY_MAX_RATIO`. If the fold
    input exceeds the budget, summarize it in sequential chunks, each step
    feeding the previous result forward.
-5. Upsert `chat_summary` (`content`, `summarized_through_message_id` = last
+5. Upsert `conversation_summary` (`content`, `summarized_through_message_id` = last
    folded message, `token_count` = reported completion tokens).
 6. Return `[system: "Summary of the earlier conversation: …"] + remaining turns + new message`.
 
@@ -239,8 +239,8 @@ type ChatStreamEventName = ... | 'context.summarizing' | 'context.updated';
 // { event: 'context.updated'; data: ChatContext }
 ```
 
-`context.updated` is emitted after a summary is saved and after
-`message.completed`. DTOs (`chat-response.dto.ts`, `models-response.dto.ts`)
+`context.updated` is emitted once, after `message.completed`, so `usedTokens`
+reflects the real post-summary prompt size. DTOs (`chat-response.dto.ts`, `models-response.dto.ts`)
 updated; OpenAPI and `api-client` regenerated.
 
 ## 9. Web (`apps/web/src/features/chat`)
@@ -254,9 +254,10 @@ updated; OpenAPI and `api-client` regenerated.
   `summarizedThroughMessageId` (if that message is loaded), collapsed by default,
   expands to show the summary text.
 - `use-chat-stream.ts` / `chat.helpers.ts`:
-  - `PendingStream.status` gains `'summarizing'`; shows "Summarizing earlier
-    messages…" in place of the thinking indicator
-  - `context.updated` writes `context` into the cached chat query data
+  - `PendingStream` gains `summarizing: boolean` (cleared on the first delta);
+    shows "Summarizing earlier messages…" in place of the thinking indicator
+  - `PendingStream` gains `context`; `context.updated` stores it there and the
+    page prefers it over the cached chat detail until the post-stream refetch
 - Follows existing styling (Tailwind only, light/dark tokens, reduced motion).
 
 ## 10. Testing
@@ -272,8 +273,10 @@ API (Jest):
 - `OllamaService`: table-backed allowlist, `listModels` intersection, startup
   default check.
 - `OllamaClientService`: `num_ctx` sent; `complete()` parsing and errors.
-- Integration: migration backfill (including an unknown model name), summary
-  persisted during a stream, chat response `context` fields.
+- Integration: model FK and restrict-delete, summary upsert (one row per chat),
+  last completed reply lookup.
+- Migration backfill (including an unknown model name) is verified manually
+  against the dev database before applying (plan Task 1, Step 3).
 
 Web (Vitest):
 
