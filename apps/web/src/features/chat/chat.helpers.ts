@@ -3,7 +3,9 @@ import type {
   ApplyStreamEventParams,
   ChatGroup,
   GroupChatsParams,
+  PendingMessagesParams,
   PendingStream,
+  PromptSummary,
 } from './chat.types';
 
 const DAY_MS = 86_400_000;
@@ -37,8 +39,12 @@ export function groupChatsByRecency({
   return buckets.filter((bucket) => bucket.chats.length > 0);
 }
 
+function collapseWhitespace(content: string): string {
+  return content.replace(/\s+/g, ' ').trim();
+}
+
 export function deriveChatTitle(content: string): string {
-  const singleLine = content.replace(/\s+/g, ' ').trim();
+  const singleLine = collapseWhitespace(content);
   return singleLine.length > 60 ? `${singleLine.slice(0, 57)}…` : singleLine;
 }
 
@@ -105,4 +111,43 @@ export function mergeMessages(pages: ChatMessage[][]): ChatMessage[] {
     }
   }
   return merged;
+}
+
+export const PENDING_PROMPT_ID = 'pending-prompt';
+
+export function isPendingVisible(
+  pending: PendingStream | null,
+): pending is PendingStream {
+  return pending?.status === 'streaming' && pending.userMessageId !== null;
+}
+
+export function visibleServerMessages({
+  messages,
+  pending,
+}: PendingMessagesParams): ChatMessage[] {
+  if (!pending) return messages;
+  return messages.filter(
+    (message) =>
+      message.id !== pending.userMessageId &&
+      message.id !== pending.assistantMessageId,
+  );
+}
+
+export function collectPrompts({
+  messages,
+  pending,
+}: PendingMessagesParams): PromptSummary[] {
+  const prompts = visibleServerMessages({ messages, pending })
+    .filter((message) => message.role === 'user')
+    .map((message) => ({
+      id: message.id,
+      preview: collapseWhitespace(message.content),
+    }));
+  if (isPendingVisible(pending)) {
+    prompts.push({
+      id: PENDING_PROMPT_ID,
+      preview: collapseWhitespace(pending.userContent),
+    });
+  }
+  return prompts;
 }

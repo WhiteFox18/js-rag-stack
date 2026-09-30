@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { makeChat, makeMessage } from '../../test/fixtures';
 import {
+  PENDING_PROMPT_ID,
   applyStreamEvent,
+  collectPrompts,
   deriveChatTitle,
   describeTokens,
   groupChatsByRecency,
@@ -125,5 +127,36 @@ describe('message helpers', () => {
     );
     expect(lines).toContain('Message tokens: 5 (ollama reported)');
     expect(lines).toContain('Model: qwen2.5:1.5b');
+  });
+});
+
+describe('collectPrompts', () => {
+  it('lists user prompts once, replacing rows owned by the pending stream', () => {
+    const prompts = collectPrompts({
+      messages: [
+        makeMessage({ id: 'u1', content: '  First\n\n question ' }),
+        makeMessage({ id: 'a1', role: 'assistant', content: 'Answer' }),
+        makeMessage({ id: 'u2', content: 'Live' }),
+        makeMessage({ id: 'a2', role: 'assistant', content: '' }),
+      ],
+      pending: {
+        ...pending,
+        userContent: 'Live',
+        userMessageId: 'u2',
+        assistantMessageId: 'a2',
+      },
+    });
+    expect(prompts).toEqual([
+      { id: 'u1', preview: 'First question' },
+      { id: PENDING_PROMPT_ID, preview: 'Live' },
+    ]);
+  });
+
+  it('omits the pending prompt until the stream is accepted', () => {
+    const prompts = collectPrompts({
+      messages: [makeMessage({ id: 'u1', content: 'Hi' })],
+      pending,
+    });
+    expect(prompts).toEqual([{ id: 'u1', preview: 'Hi' }]);
   });
 });

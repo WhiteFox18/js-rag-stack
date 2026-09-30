@@ -63,10 +63,7 @@ export interface MessageListProps {
   hasOlder: boolean;
   isLoadingOlder: boolean;
   onLoadOlder: () => void;
-}
-
-export interface MessageBubbleProps {
-  message: ChatMessage;
+  scroll: ScrollTracking;
 }
 
 export interface ModelSelectorProps {
@@ -113,4 +110,26 @@ export interface ScrollTracking {
   scrollToPrompt: (id: string) => void;
   scrollToBottom: () => void;
   preserveScrollPosition: () => void;
+}
+
+export interface PendingMessagesParams {
+  messages: ChatMessage[];
+  pending: PendingStream | null;
+}
+
+export interface PromptSummary {
+  id: string;
+  preview: string;
+}
+
+export interface UserMessageProps {
+  id: string;
+  content: string;
+}
+
+export interface AssistantMessageProps {
+  content: string;
+  streaming: boolean;
+  status: ChatMessage['status'] | null;
+  details: string[];
 }

@@ -1,45 +1,108 @@
-import { useEffect, useRef } from 'react';
-import { describeTokens } from './chat.helpers';
-import type { MessageBubbleProps, MessageListProps } from './chat.types';
+import { CopyButton } from '../../components/copy-button';
+import { ArrowDownIcon } from '../../components/icons';
+import {
+  PENDING_PROMPT_ID,
+  describeTokens,
+  isPendingVisible,
+  visibleServerMessages,
+} from './chat.helpers';
+import type {
+  AssistantMessageProps,
+  MessageListProps,
+  UserMessageProps,
+} from './chat.types';
+import { MarkdownContent } from './markdown';
 
-const STATUS_LABEL: Record<string, string> = {
-  failed: 'Response failed',
-  cancelled: 'Stopped',
-  streaming: 'Incomplete',
-};
+const STATUS_CHIP = {
+  failed: { label: 'Response failed', className: 'bg-danger-soft text-danger' },
+  cancelled: { label: 'Stopped', className: 'bg-warning-soft text-warning' },
+  streaming: { label: 'Incomplete', className: 'bg-warning-soft text-warning' },
+} as const;
 
-function MessageBubble({ message }: MessageBubbleProps) {
-  const isUser = message.role === 'user';
-  const details = isUser ? [] : describeTokens(message);
-  const statusLabel = STATUS_LABEL[message.status];
+const ACTION_ROW =
+  'mt-1 flex items-center gap-1 transition-opacity can-hover:opacity-0 can-hover:group-hover:opacity-100 can-hover:group-focus-within:opacity-100 can-hover:has-open:opacity-100';
+
+function UserMessage({ id, content }: UserMessageProps) {
+  return (
+    <li className="group flex flex-col items-end">
+      <article
+        aria-label="You"
+        data-prompt-id={id}
+        tabIndex={-1}
+        className="max-w-[75%] rounded-2xl bg-surface-2 px-4 py-2.5 text-[15px] leading-7 text-fg"
+      >
+        <p className="break-words whitespace-pre-wrap">{content}</p>
+      </article>
+      <div className={ACTION_ROW}>
+        <CopyButton text={content} label="Copy prompt" />
+      </div>
+    </li>
+  );
+}
+
+function ThinkingIndicator() {
+  return (
+    <span
+      role="status"
+      aria-label="Assistant is thinking"
+      className="inline-flex gap-1 py-2"
+    >
+      {[0, 1, 2].map((index) => (
+        <span
+          key={index}
+          className="thinking-dot size-1.5 rounded-full bg-fg-subtle"
+          style={{ animationDelay: `${index * 150}ms` }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function AssistantMessage({
+  content,
+  streaming,
+  status,
+  details,
+}: AssistantMessageProps) {
+  const chip = status && status !== 'completed' ? STATUS_CHIP[status] : null;
 
   return (
-    <li className={isUser ? 'flex justify-end' : 'flex justify-start'}>
+    <li className="group">
       <article
-        aria-label={isUser ? 'You' : 'Assistant'}
-        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${
-          isUser
-            ? 'bg-cyan-500/15 text-slate-100'
-            : 'border border-slate-800 bg-slate-900 text-slate-200'
-        }`}
+        aria-label="Assistant"
+        aria-busy={streaming || undefined}
+        className="text-[15px] text-fg"
       >
-        <p className="whitespace-pre-wrap break-words">{message.content}</p>
-        {statusLabel && !isUser ? (
-          <p className="mt-2 text-xs text-amber-300">{statusLabel}</p>
+        {content ? (
+          <MarkdownContent content={content} streaming={streaming} />
+        ) : streaming ? (
+          <ThinkingIndicator />
         ) : null}
-        {details.length > 0 ? (
-          <details className="mt-2 text-xs text-slate-500">
-            <summary className="cursor-pointer select-none hover:text-slate-300">
-              Details
-            </summary>
-            <ul className="mt-1 space-y-0.5 font-mono">
-              {details.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </details>
+        {chip && !streaming ? (
+          <span
+            className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${chip.className}`}
+          >
+            {chip.label}
+          </span>
         ) : null}
       </article>
+      {streaming ? null : (
+        <div className={ACTION_ROW}>
+          {content ? <CopyButton text={content} label="Copy response" /> : null}
+          {details.length > 0 ? (
+            <details className="text-xs text-fg-subtle">
+              <summary className="cursor-pointer rounded-md px-1.5 py-1 select-none hover:bg-surface-2 hover:text-fg">
+                Details
+              </summary>
+              <ul className="mt-1 space-y-0.5 px-1.5 font-mono">
+                {details.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+        </div>
+      )}
     </li>
   );
 }
@@ -50,76 +113,90 @@ export function MessageList({
   hasOlder,
   isLoadingOlder,
   onLoadOlder,
+  scroll,
 }: MessageListProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const streamingVisible =
-    pending?.status === 'streaming' && pending.userMessageId !== null;
-  const serverMessages = pending
-    ? messages.filter(
-        (message) =>
-          message.id !== pending.userMessageId &&
-          message.id !== pending.assistantMessageId,
-      )
-    : messages;
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (container) container.scrollTop = container.scrollHeight;
-  }, [serverMessages.length, pending?.assistantText]);
+  const {
+    containerRef,
+    contentRef,
+    isAtBottom,
+    preserveScrollPosition,
+    scrollToBottom,
+  } = scroll;
+  const serverMessages = visibleServerMessages({ messages, pending });
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-6">
-      <div className="mx-auto max-w-3xl">
-        {hasOlder ? (
-          <div className="mb-4 text-center">
-            <button
-              type="button"
-              disabled={isLoadingOlder}
-              onClick={onLoadOlder}
-              className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-60"
-            >
-              {isLoadingOlder ? 'Loading…' : 'Load earlier messages'}
-            </button>
-          </div>
-        ) : null}
-        <ol
-          role="log"
-          aria-live="polite"
-          aria-label="Conversation"
-          className="space-y-4"
-        >
-          {serverMessages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))}
-          {streamingVisible ? (
-            <>
-              <li className="flex justify-end">
-                <article
-                  aria-label="You"
-                  className="max-w-[85%] rounded-2xl bg-cyan-500/15 px-4 py-3 text-sm leading-6 text-slate-100"
-                >
-                  <p className="whitespace-pre-wrap break-words">
-                    {pending.userContent}
-                  </p>
-                </article>
-              </li>
-              <li className="flex justify-start">
-                <article
-                  aria-label="Assistant"
-                  aria-busy="true"
-                  className="max-w-[85%] rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm leading-6 text-slate-200"
-                >
-                  <p className="whitespace-pre-wrap break-words">
-                    {pending.assistantText || (
-                      <span className="text-slate-500">Thinking…</span>
-                    )}
-                  </p>
-                </article>
-              </li>
-            </>
+    <div className="relative min-h-0 flex-1">
+      <div
+        ref={containerRef}
+        data-scroll-container
+        className="relative h-full overflow-y-auto [overflow-anchor:none]"
+      >
+        <div ref={contentRef} className="mx-auto max-w-3xl px-4 py-8">
+          {hasOlder ? (
+            <div className="mb-6 text-center">
+              <button
+                type="button"
+                disabled={isLoadingOlder}
+                onClick={() => {
+                  preserveScrollPosition();
+                  onLoadOlder();
+                }}
+                className="rounded-full border border-border px-3 py-1.5 text-sm text-fg-muted hover:bg-surface hover:text-fg disabled:opacity-60"
+              >
+                {isLoadingOlder ? 'Loading…' : 'Load earlier messages'}
+              </button>
+            </div>
           ) : null}
-        </ol>
+          <ol
+            role="log"
+            aria-live="polite"
+            aria-label="Conversation"
+            className="space-y-8"
+          >
+            {serverMessages.map((message) =>
+              message.role === 'user' ? (
+                <UserMessage
+                  key={message.id}
+                  id={message.id}
+                  content={message.content}
+                />
+              ) : (
+                <AssistantMessage
+                  key={message.id}
+                  content={message.content}
+                  streaming={false}
+                  status={message.status}
+                  details={describeTokens(message)}
+                />
+              ),
+            )}
+            {isPendingVisible(pending) ? (
+              <>
+                <UserMessage
+                  id={PENDING_PROMPT_ID}
+                  content={pending.userContent}
+                />
+                <AssistantMessage
+                  content={pending.assistantText}
+                  streaming
+                  status={null}
+                  details={[]}
+                />
+              </>
+            ) : null}
+          </ol>
+        </div>
       </div>
+      {isAtBottom ? null : (
+        <button
+          type="button"
+          onClick={scrollToBottom}
+          className="absolute bottom-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border bg-bg px-3 py-1.5 text-sm text-fg shadow-md hover:bg-surface"
+        >
+          <ArrowDownIcon className="size-4" />
+          Jump to latest
+        </button>
+      )}
     </div>
   );
 }

@@ -6,11 +6,12 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, toErrorMessage } from '../../lib/api';
-import { deriveChatTitle, mergeMessages } from './chat.helpers';
+import { collectPrompts, deriveChatTitle, mergeMessages } from './chat.helpers';
 import { Composer } from './composer';
 import { MessageList } from './message-list';
 import { ModelSelector } from './model-selector';
 import { useChatStream } from './use-chat-stream';
+import { useScrollTracking } from './use-scroll-tracking';
 
 interface ModelOverride {
   scope: string;
@@ -50,9 +51,16 @@ export function ChatPage() {
   const messages = mergeMessages(
     chat.data?.pages.map((page) => page.messages) ?? [],
   );
+  const chatPending = pending && pending.chatId === chatId ? pending : null;
+  const prompts = collectPrompts({ messages, pending: chatPending });
+  const scroll = useScrollTracking({
+    promptIds: prompts.map((prompt) => prompt.id),
+    resetKey: scope,
+  });
 
   const handleSend = async (content: string): Promise<boolean> => {
     if (!activeModel) return false;
+    scroll.scrollToBottom();
     setSendError(null);
     dismissError();
     let targetId = chatId;
@@ -120,10 +128,11 @@ export function ChatPage() {
       ) : (
         <MessageList
           messages={messages}
-          pending={pending && pending.chatId === chatId ? pending : null}
+          pending={chatPending}
           hasOlder={Boolean(chat.hasNextPage)}
           isLoadingOlder={chat.isFetchingNextPage}
           onLoadOlder={() => void chat.fetchNextPage()}
+          scroll={scroll}
         />
       )}
 
