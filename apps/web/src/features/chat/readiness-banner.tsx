@@ -16,7 +16,7 @@ export function ReadinessBanner({ readiness }: ReadinessBannerProps) {
   return (
     <div
       role="status"
-      className="border-b border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm text-amber-200"
+      className="border-b border-warning/30 bg-warning-soft px-4 py-2 text-sm text-warning"
     >
       Service degraded
       {down.length > 0 ? `: ${down.join(', ')} unavailable.` : '.'} Some

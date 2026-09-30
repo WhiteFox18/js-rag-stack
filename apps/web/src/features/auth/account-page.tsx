@@ -21,24 +21,24 @@ export function AccountPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 py-8">
-      <Link to="/" className="text-sm text-cyan-300 hover:underline">
+      <Link to="/" className="text-sm text-accent hover:underline">
         ← Back to chat
       </Link>
-      <h1 className="mt-4 text-2xl font-semibold text-slate-100">Account</h1>
+      <h1 className="mt-4 text-2xl font-semibold text-fg">Account</h1>
 
       {user.isPending ? (
-        <p role="status" className="mt-6 text-slate-400">
+        <p role="status" className="mt-6 text-fg-muted">
           Loading account…
         </p>
       ) : !user.data ? (
-        <p className="mt-6 text-slate-300">
+        <p className="mt-6 text-fg-muted">
           Sign in from the chat sidebar to manage your devices.
         </p>
       ) : (
         <>
-          <p className="mt-2 text-slate-400">
+          <p className="mt-2 text-fg-muted">
             Signed in as{' '}
-            <span className="text-slate-200">
+            <span className="text-fg">
               {user.data.displayName ?? user.data.email}
             </span>
           </p>
@@ -50,7 +50,7 @@ export function AccountPage() {
               </h2>
               <button
                 type="button"
-                className="rounded-lg border border-rose-500/50 px-3 py-1.5 text-sm text-rose-300 hover:bg-rose-500/10"
+                className="rounded-lg border border-danger/40 px-3 py-1.5 text-sm text-danger hover:bg-danger-soft"
                 disabled={signOutAll.isPending}
                 onClick={() => signOutAll.mutate()}
               >
@@ -58,30 +58,30 @@ export function AccountPage() {
               </button>
             </div>
             {sessions.isPending ? (
-              <p role="status" className="mt-4 text-sm text-slate-400">
+              <p role="status" className="mt-4 text-sm text-fg-muted">
                 Loading sessions…
               </p>
             ) : sessions.isError ? (
-              <p role="alert" className="mt-4 text-sm text-rose-300">
+              <p role="alert" className="mt-4 text-sm text-danger">
                 {toErrorMessage(sessions.error)}
               </p>
             ) : (
-              <ul className="mt-4 divide-y divide-slate-800 rounded-xl border border-slate-800">
+              <ul className="mt-4 divide-y divide-border rounded-xl border border-border">
                 {sessions.data.map((session) => (
                   <li
                     key={session.id}
                     className="flex items-center justify-between gap-4 p-4"
                   >
                     <div className="min-w-0 text-sm">
-                      <p className="truncate text-slate-200">
+                      <p className="truncate text-fg">
                         {session.userAgent ?? 'Unknown device'}
                         {session.current ? (
-                          <span className="ml-2 rounded-full bg-emerald-400/15 px-2 py-0.5 text-xs text-emerald-300">
+                          <span className="ml-2 rounded-full bg-success-soft px-2 py-0.5 text-xs text-success">
                             This device
                           </span>
                         ) : null}
                       </p>
-                      <p className="mt-1 text-slate-500">
+                      <p className="mt-1 text-fg-subtle">
                         Last used{' '}
                         {new Date(session.lastUsedAt).toLocaleString()}
                       </p>
@@ -89,7 +89,7 @@ export function AccountPage() {
                     {session.current ? null : (
                       <button
                         type="button"
-                        className="shrink-0 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
+                        className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm text-fg hover:bg-surface-2"
                         disabled={revoke.isPending}
                         onClick={() => revoke.mutate(session.id)}
                       >
@@ -101,7 +101,7 @@ export function AccountPage() {
               </ul>
             )}
             {revoke.isError ? (
-              <p role="alert" className="mt-3 text-sm text-rose-300">
+              <p role="alert" className="mt-3 text-sm text-danger">
                 {toErrorMessage(revoke.error)}
               </p>
             ) : null}
