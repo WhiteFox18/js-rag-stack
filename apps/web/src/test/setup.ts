@@ -1,8 +1,14 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
+import { installDomMocks, resetObservers } from './dom';
 
-afterEach(() => cleanup());
+installDomMocks();
+
+afterEach(() => {
+  cleanup();
+  resetObservers();
+});
 
 // Node's experimental global localStorage shadows jsdom's and is unusable
 // without --localstorage-file, so install a deterministic in-memory Storage.

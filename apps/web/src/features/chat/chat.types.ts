@@ -98,3 +98,19 @@ export interface MarkdownContentProps {
   content: string;
   streaming?: boolean;
 }
+
+export interface UseScrollTrackingParams {
+  promptIds: string[];
+  resetKey: string;
+}
+
+export interface ScrollTracking {
+  containerRef: (element: HTMLDivElement | null) => void;
+  contentRef: (element: HTMLDivElement | null) => void;
+  activePromptId: string | null;
+  isOverflowing: boolean;
+  isAtBottom: boolean;
+  scrollToPrompt: (id: string) => void;
+  scrollToBottom: () => void;
+  preserveScrollPosition: () => void;
+}
