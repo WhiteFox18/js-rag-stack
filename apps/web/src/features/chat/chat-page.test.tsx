@@ -199,6 +199,26 @@ describe('ChatPage', () => {
     expect(api.createChat).not.toHaveBeenCalled();
     expect(api.streamMessage).not.toHaveBeenCalled();
   });
+
+  it('shows context usage for the open chat', async () => {
+    api.getModels.mockResolvedValue({
+      models: [{ name: 'qwen2.5:1.5b', default: true, maxContext: 8192 }],
+    });
+    api.getChat.mockResolvedValue({
+      ...makeChat({ id: 'c1' }),
+      nextCursor: null,
+      messages: [makeMessage({ id: 'u', content: 'Hi' })],
+      context: {
+        usedTokens: 1234,
+        maxTokens: 8192,
+        summary: null,
+        summarizedThroughMessageId: null,
+      },
+    });
+    renderPage('/chats/c1');
+
+    expect(await screen.findByText('1.2k / 8.2k tokens')).toBeInTheDocument();
+  });
 });
 
 function chatWithPrompts(count: number) {

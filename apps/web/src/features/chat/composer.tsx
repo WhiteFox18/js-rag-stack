@@ -28,6 +28,7 @@ export function Composer({
   isBusy,
   disabled,
   insertion = null,
+  contextMeter = null,
   onSend,
   onStop,
 }: ComposerProps) {
@@ -148,13 +149,16 @@ export function Composer({
             </button>
           )}
         </div>
-        <div className="mt-1.5 flex justify-between gap-3 px-1 text-xs text-fg-subtle">
+        <div className="mt-1.5 flex items-center justify-between gap-3 px-1 text-xs text-fg-subtle">
           <p id={hintId}>Enter to send · Shift+Enter for a new line</p>
-          {text.length > COUNTER_THRESHOLD ? (
-            <p aria-live="polite">
-              {text.length} / {MAX_CHARS}
-            </p>
-          ) : null}
+          <div className="flex items-center gap-3">
+            {text.length > COUNTER_THRESHOLD ? (
+              <p aria-live="polite">
+                {text.length} / {MAX_CHARS}
+              </p>
+            ) : null}
+            {contextMeter}
+          </div>
         </div>
       </div>
     </form>

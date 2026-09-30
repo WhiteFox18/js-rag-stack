@@ -14,6 +14,7 @@ import {
 } from './chat.helpers';
 import type { ComposerInsertion } from './chat.types';
 import { Composer } from './composer';
+import { ContextMeter } from './context-meter';
 import { MessageList } from './message-list';
 import { ModelSelector } from './model-selector';
 import { PromptNavigator } from './prompt-navigator';
@@ -62,11 +63,15 @@ export function ChatPage() {
     (override?.scope === scope ? override.model : null) ??
     chatModel ??
     defaultModel;
+  const activeModelInfo =
+    modelList.find((model) => model.name === activeModel) ?? null;
   const isBusy = pending?.status === 'streaming';
   const messages = mergeMessages(
     chat.data?.pages.map((page) => page.messages) ?? [],
   );
   const chatPending = pending && pending.chatId === chatId ? pending : null;
+  const chatContext =
+    chatPending?.context ?? chat.data?.pages[0]?.context ?? null;
   const prompts = collectPrompts({ messages, pending: chatPending });
   const scroll = useScrollTracking({
     promptIds: prompts.map((prompt) => prompt.id),
@@ -202,6 +207,12 @@ export function ChatPage() {
             isBusy={isBusy}
             disabled={!activeModel}
             insertion={insertion}
+            contextMeter={
+              <ContextMeter
+                usedTokens={chatId ? (chatContext?.usedTokens ?? null) : null}
+                maxTokens={activeModelInfo?.maxContext ?? null}
+              />
+            }
             onSend={handleSend}
             onStop={cancel}
           />

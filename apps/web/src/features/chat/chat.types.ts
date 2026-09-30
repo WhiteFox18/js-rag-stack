@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { AuthUser, ReadinessResponse } from '@js-rag-stack/api-client';
 import type {
   ChatContext,
@@ -82,11 +83,17 @@ export interface ComposerInsertion {
   text: string;
 }
 
+export interface ContextMeterProps {
+  usedTokens: number | null;
+  maxTokens: number | null;
+}
+
 export interface ComposerProps {
   draftKey: string;
   isBusy: boolean;
   disabled: boolean;
   insertion?: ComposerInsertion | null;
+  contextMeter?: ReactNode;
   onSend: (content: string) => Promise<boolean>;
   onStop: () => void;
 }
