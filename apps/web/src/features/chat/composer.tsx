@@ -150,7 +150,9 @@ export function Composer({
           )}
         </div>
         <div className="mt-1.5 flex items-center justify-between gap-3 px-1 text-xs text-fg-subtle">
-          <p id={hintId}>Enter to send · Shift+Enter for a new line</p>
+          <p id={hintId} className="max-sm:sr-only">
+            Enter to send · Shift+Enter for a new line
+          </p>
           <div className="flex items-center gap-3">
             {text.length > COUNTER_THRESHOLD ? (
               <p aria-live="polite">

@@ -87,8 +87,8 @@ function SummarizingIndicator() {
 function SummaryDivider({ summary }: { summary: string }) {
   return (
     <li>
-      <details className="group/summary text-center text-xs text-fg-subtle">
-        <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 select-none hover:text-fg">
+      <details className="text-center text-xs text-fg-subtle">
+        <summary className="inline-flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden rounded-md px-2 py-1 select-none hover:text-fg">
           <span aria-hidden="true" className="h-px w-10 bg-border" />
           Earlier messages summarized
           <span aria-hidden="true" className="h-px w-10 bg-border" />
