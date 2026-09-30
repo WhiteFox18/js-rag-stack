@@ -49,7 +49,8 @@ New units (paths relative to `apps/web/src`):
 | `features/chat/markdown.tsx` | Render assistant markdown. Code blocks: language label, copy button, `shiki` highlighting loaded via dynamic `import()`; plain `<pre>` until loaded. Raw HTML disabled (react-markdown default; no `rehype-raw`). | react-markdown, remark-gfm, shiki |
 | `features/chat/prompt-navigator.tsx` | Presentational list. Props: `prompts: { id: string; preview: string }[]`, `activeId: string \| null`, `onSelect(id)`. Preview is the prompt's first line, CSS-truncated with ellipsis. | — |
 | `features/chat/use-scroll-tracking.ts` | Hook owning scroll behavior: registers message nodes (`registerMessage(id)` ref callback), computes `activePromptId` (IntersectionObserver), `isOverflowing` (ResizeObserver on container + content), `isAtBottom`, `scrollToMessage(id)`, `scrollToBottom()`. | browser observers |
-| `lib/theme.ts` | Read/write theme preference (`system \| light \| dark`) with try/catch around storage; apply `data-theme` on `<html>`; listen to `prefers-color-scheme` when `system`. | — |
+| `lib/theme.ts` | Read/write theme preference (`system \| light \| dark`) via `lib/storage.ts`; set or remove `data-theme` on `<html>`. System mode needs no listener: CSS `light-dark()` follows the OS. | `lib/storage.ts` |
+| `lib/storage.ts` | try/catch-wrapped `localStorage` read/write shared by theme and sidebar state. | — |
 | `features/chat/theme-toggle.tsx` | Three-way segmented control in the sidebar footer. | `lib/theme.ts` |
 | `components/icons.tsx` | Inline SVG icons: menu, sidebar, pencil, trash, more (⋯), copy, check, send, stop, arrow-down, sun, moon, monitor. `aria-hidden` by default. | — |
 | `components/confirm-dialog.tsx` | Accessible confirm using native `<dialog>` (`showModal`) — focus trap, Escape, focus return to invoker. | — |
@@ -112,11 +113,11 @@ Changed units:
 
 ## 5. Theming & typography
 
-- Semantic tokens in Tailwind v4 `@theme`: `bg`, `surface`, `surface-2`, `border`, `text`, `text-muted`, `accent`, `accent-fg`, `danger`, `warning`, `success`. Components use these (`bg-surface`, `text-muted`), never raw palette classes.
-- Light values by default; dark values under `[data-theme="dark"]` and under `@media (prefers-color-scheme: dark)` when `data-theme` is unset/`system`.
+- Semantic tokens exposed via Tailwind v4 `@theme inline`: `bg`, `surface`, `surface-2`, `border`, `fg`, `fg-muted`, `fg-subtle`, `accent`, `accent-hover`, `accent-fg`, `accent-soft`, `danger(-soft)`, `warning(-soft)`, `success(-soft)`. Components use these (`bg-surface`, `text-fg-muted`), never raw palette classes.
+- Each token is a CSS `light-dark(light, dark)` value. `:root` has `color-scheme: light dark` (follows OS); `[data-theme="light"|"dark"]` pins `color-scheme`. Browser floor: Chrome 123, Safari 17.5, Firefox 120.
 - Neutral gray base, indigo/violet accent. All text/background pairs meet WCAG AA in both themes.
 - Inline script in `index.html` sets `data-theme` from storage before first paint.
-- `shiki` dual themes (`github-light`, `github-dark`) switched via CSS variables.
+- `shiki` dual themes (`github-light`, `github-dark`) emitted with `defaultColor: false`; CSS picks `light-dark(var(--shiki-light), var(--shiki-dark))`.
 - Inter from Google Fonts, system fallback. Scoped `.prose` styles in `styles.css` for headings, lists, tables, blockquotes, inline code, links.
 
 ## 6. Accessibility
@@ -132,7 +133,7 @@ Changed units:
 - `shiki` load failure: keep unhighlighted `<pre>`; no error surfaced.
 - Clipboard failure: copy button shows a brief "Copy failed" state instead of "Copied".
 - Storage unavailable (theme, sidebar, drafts): fall back to defaults silently.
-- Observers unavailable: navigator stays hidden; scrolling falls back to always-follow-at-bottom.
+- Observers unavailable: navigator stays hidden and auto-follow is disabled (all supported browsers have both observers).
 
 ## 8. Testing
 
@@ -149,9 +150,9 @@ Vitest + Testing Library, following existing test patterns in `apps/web/src`. Mo
 
 ## 9. Phases
 
-Each phase is one commit and leaves the app working with all checks green.
+Each task is one commit; every commit leaves the app working with all checks green.
 
-0. **Foundation** — design tokens in `styles.css` (dark values mirroring the current look, light values added), `components/icons.tsx`. Done first so later phases use tokens instead of raw `slate-*` classes that would be rewritten again.
+0. **Foundation** — final light/dark design tokens in `styles.css`, Inter, `components/icons.tsx`. `index.html` pins `data-theme="dark"` until the toggle lands in phase 3, so partially migrated screens stay coherent. Every later task that rewrites a file moves it fully to tokens.
 1. **Readability** — markdown + code blocks, message layout, scroll tracking, jump-to-latest, prompt navigator.
 2. **Friction** — auto-grow composer, ⋯ menu + confirm dialog, collapsible sidebar, empty state with examples, message action row.
 3. **Polish** — theme toggle + pre-paint script, final palette/typography tuning, restyle auth dialog, account page, model selector, banners.
