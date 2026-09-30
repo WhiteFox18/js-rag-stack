@@ -9,6 +9,7 @@ import type { AuthMode } from '../auth/auth.types';
 import { useAuthUser } from '../auth/use-auth';
 import { ChatSidebar } from './chat-sidebar';
 import { ReadinessBanner } from './readiness-banner';
+import { ThemeToggle } from './theme-toggle';
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar:collapsed';
 
@@ -87,6 +88,11 @@ export function ChatShell() {
             <PanelLeftIcon className="size-4" />
           </button>
           <span className="text-sm font-semibold text-fg">Local LLM Chat</span>
+          {collapsed ? (
+            <div className="ml-auto hidden md:flex">
+              <ThemeToggle />
+            </div>
+          ) : null}
         </header>
         {readiness.data ? <ReadinessBanner readiness={readiness.data} /> : null}
         {readiness.isError ? (

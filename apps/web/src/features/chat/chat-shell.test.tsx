@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -76,5 +76,21 @@ describe('ChatShell', () => {
     expect(screen.getByRole('complementary', { name: 'Sidebar' })).toHaveClass(
       'fixed',
     );
+  });
+
+  it('keeps the theme toggle reachable when the sidebar is collapsed', async () => {
+    const user = userEvent.setup();
+    renderShell();
+    expect(
+      within(screen.getByRole('banner')).queryByRole('group', {
+        name: 'Theme',
+      }),
+    ).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Hide sidebar' }));
+
+    expect(
+      within(screen.getByRole('banner')).getByRole('group', { name: 'Theme' }),
+    ).toBeInTheDocument();
   });
 });
