@@ -151,3 +151,15 @@ export function collectPrompts({
   }
   return prompts;
 }
+
+export const MIN_NAVIGATOR_PROMPTS = 3;
+
+export function shouldShowNavigator({
+  promptCount,
+  isOverflowing,
+}: {
+  promptCount: number;
+  isOverflowing: boolean;
+}): boolean {
+  return isOverflowing && promptCount >= MIN_NAVIGATOR_PROMPTS;
+}

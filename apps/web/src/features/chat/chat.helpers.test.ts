@@ -8,6 +8,7 @@ import {
   describeTokens,
   groupChatsByRecency,
   mergeMessages,
+  shouldShowNavigator,
 } from './chat.helpers';
 import type { PendingStream } from './chat.types';
 
@@ -158,5 +159,19 @@ describe('collectPrompts', () => {
       pending,
     });
     expect(prompts).toEqual([{ id: 'u1', preview: 'Hi' }]);
+  });
+});
+
+describe('shouldShowNavigator', () => {
+  it('needs both overflow and at least three prompts', () => {
+    expect(shouldShowNavigator({ promptCount: 3, isOverflowing: true })).toBe(
+      true,
+    );
+    expect(shouldShowNavigator({ promptCount: 2, isOverflowing: true })).toBe(
+      false,
+    );
+    expect(shouldShowNavigator({ promptCount: 9, isOverflowing: false })).toBe(
+      false,
+    );
   });
 });

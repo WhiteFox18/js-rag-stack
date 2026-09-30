@@ -2,6 +2,11 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  getScrollContainer,
+  mockScrollGeometry,
+  triggerResize,
+} from '../../test/dom';
 import { makeChat, makeMessage } from '../../test/fixtures';
 import { renderWithProviders } from '../../test/render';
 import { ChatPage } from './chat-page';
@@ -173,5 +178,77 @@ describe('ChatPage', () => {
     );
     expect(await screen.findByText('Earlier message')).toBeInTheDocument();
     expect(api.getChat).toHaveBeenLastCalledWith('c1', { cursor: 'cursor-1' });
+  });
+});
+
+function chatWithPrompts(count: number) {
+  return {
+    ...makeChat({ id: 'c1' }),
+    nextCursor: null,
+    messages: Array.from({ length: count }, (_, index) => [
+      makeMessage({ id: `u${index}`, content: `Prompt number ${index}` }),
+      makeMessage({
+        id: `a${index}`,
+        role: 'assistant',
+        content: `Reply ${index}`,
+      }),
+    ]).flat(),
+  };
+}
+
+describe('ChatPage prompt navigator', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.getModels.mockResolvedValue({
+      models: [{ name: 'qwen2.5:1.5b', default: true }],
+    });
+  });
+
+  const navigator = () =>
+    screen.queryByRole('navigation', { name: 'Prompts in this chat' });
+
+  it('appears once a chat with three prompts overflows the screen', async () => {
+    api.getChat.mockResolvedValue(chatWithPrompts(3));
+    renderPage('/chats/c1');
+    await screen.findByText('Reply 2');
+    const geometry = mockScrollGeometry(getScrollContainer(), {
+      scrollHeight: 400,
+      clientHeight: 600,
+    });
+    triggerResize();
+    expect(navigator()).toBeNull();
+
+    geometry.scrollHeight = 2000;
+    triggerResize();
+    expect(navigator()).toBeInTheDocument();
+  });
+
+  it('stays hidden with fewer than three prompts even when overflowing', async () => {
+    api.getChat.mockResolvedValue(chatWithPrompts(2));
+    renderPage('/chats/c1');
+    await screen.findByText('Reply 1');
+    mockScrollGeometry(getScrollContainer(), {
+      scrollHeight: 2000,
+      clientHeight: 600,
+    });
+    triggerResize();
+    expect(navigator()).toBeNull();
+  });
+
+  it('scrolls to and focuses the chosen prompt', async () => {
+    api.getChat.mockResolvedValue(chatWithPrompts(3));
+    renderPage('/chats/c1');
+    await screen.findByText('Reply 2');
+    mockScrollGeometry(getScrollContainer(), {
+      scrollHeight: 2000,
+      clientHeight: 600,
+    });
+    triggerResize();
+
+    const entry = screen.getByRole('button', { name: /Prompt number 1/ });
+    await userEvent.click(entry);
+
+    expect(entry).toHaveAttribute('aria-current', 'true');
+    expect(document.activeElement).toHaveAttribute('data-prompt-id', 'u1');
   });
 });

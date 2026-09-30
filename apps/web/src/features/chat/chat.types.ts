@@ -133,3 +133,9 @@ export interface AssistantMessageProps {
   status: ChatMessage['status'] | null;
   details: string[];
 }
+
+export interface PromptNavigatorProps {
+  prompts: PromptSummary[];
+  activeId: string | null;
+  onSelect: (id: string) => void;
+}
