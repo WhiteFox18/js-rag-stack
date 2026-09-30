@@ -18,6 +18,7 @@ import {
   entriesAfter,
   estimateMessageTokens,
   estimatePromptTokens,
+  isDegenerateSummary,
   getContextBudget,
   needsSummarization,
   selectTurnsToFold,
@@ -185,13 +186,16 @@ export class ContextWindowService {
         signal,
       });
       content = result.content.trim();
+      if (isDegenerateSummary(content)) {
+        throw new Error('The model returned an empty summary.');
+      }
       tokenCount =
         result.completionTokens ??
         estimateMessageTokens(content, charsPerToken);
     }
 
     const lastFolded = folded.at(-1);
-    if (!content || !lastFolded) {
+    if (content === null || !lastFolded) {
       throw new Error('The model returned an empty summary.');
     }
 

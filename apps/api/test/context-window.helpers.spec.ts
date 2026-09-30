@@ -6,6 +6,7 @@ import {
   estimateMessageTokens,
   estimatePromptTokens,
   getContextBudget,
+  isDegenerateSummary,
   needsSummarization,
   selectTurnsToFold,
   toPromptMessages,
@@ -163,9 +164,30 @@ describe('context window helpers', () => {
       maxEntryChars: 10,
     });
     expect(system?.role).toBe('system');
-    expect(user?.content).toContain('Known: likes Rust.');
+    expect(system?.content).toContain(
+      'Keep every bullet from the existing notes',
+    );
+    expect(user?.content).toContain('Existing notes:\nKnown: likes Rust.');
     expect(user?.content).toContain(`Assistant: ${'z'.repeat(10)}…`);
     expect(user?.content).not.toContain('z'.repeat(11));
+  });
+
+  it('buildSummaryRequest omits the existing-notes section without a previous summary', () => {
+    const [, user] = buildSummaryRequest({
+      previousSummary: null,
+      entries: [{ id: 'u1', role: 'user', content: 'My cat is Miso.' }],
+      maxEntryChars: 100,
+    });
+    expect(user?.content.startsWith('Messages to take notes on:')).toBe(true);
+    expect(user?.content).not.toContain('(none)');
+    expect(user?.content).not.toContain('Existing notes');
+  });
+
+  it('isDegenerateSummary flags empty and placeholder output only', () => {
+    for (const text of ['', '(none)', 'None.', ' - ']) {
+      expect(isDegenerateSummary(text)).toBe(true);
+    }
+    expect(isDegenerateSummary('- The user has a cat named Miso.')).toBe(false);
   });
 
   it('builds the prompt with the summary as a system message', () => {

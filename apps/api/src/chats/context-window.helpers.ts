@@ -16,12 +16,20 @@ export const MESSAGE_OVERHEAD_TOKENS = 4;
 export const SUMMARY_PROMPT_OVERHEAD_TOKENS = 256;
 
 const SUMMARY_INSTRUCTIONS = [
-  'You maintain a running summary of a conversation between a user and an assistant.',
-  'Update the summary with the new messages. Preserve facts, decisions, names, numbers,',
-  'code identifiers, user preferences, and open questions. Drop pleasantries and repetition.',
-  'Write concise prose in the same language as the conversation.',
-  'Reply with the updated summary only.',
+  'You keep notes about a conversation between a user and an assistant.',
+  'Write the notes as a bulleted list, one fact per line, each line starting with "- ".',
+  'Keep every bullet from the existing notes unless a newer message contradicts it.',
+  'Add new facts from the new messages. Always keep facts the user states about',
+  'themselves or their situation (names, pets, preferences, numbers, decisions, goals),',
+  'plus key conclusions and open questions. Drop pleasantries and repetition.',
+  'Write in the same language as the conversation.',
+  'Do not answer or continue the conversation. Reply with the bulleted notes only.',
 ].join('\n');
+
+// Small models sometimes echo a placeholder instead of writing notes.
+export function isDegenerateSummary(text: string): boolean {
+  return /^[\s\-*•]*\(?\s*(none|n\/a|empty)?\s*\)?[\s.]*$/i.test(text);
+}
 
 export function getContextBudget(
   maxContext: number,
@@ -182,7 +190,10 @@ export function buildSummaryRequest({
     { role: 'system', content: SUMMARY_INSTRUCTIONS },
     {
       role: 'user',
-      content: `Current summary:\n${previousSummary ?? '(none)'}\n\nNew messages:\n${transcript}`,
+      content:
+        previousSummary === null
+          ? `Messages to take notes on:\n\n${transcript}`
+          : `Existing notes:\n${previousSummary}\n\nNew messages:\n${transcript}`,
     },
   ];
 }

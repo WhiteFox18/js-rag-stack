@@ -213,6 +213,22 @@ describe('ContextWindowService', () => {
     expect(result.messages.length).toBeLessThan(13);
   });
 
+  it('treats a placeholder summary as a failed summarization', async () => {
+    const { service, ollama, summaries } = setup();
+    ollama.complete.mockResolvedValue({
+      content: '(none)',
+      completionTokens: 2,
+    });
+    const result = await build(service, { history: history(6, 300) });
+
+    expect(summaries.upsert).not.toHaveBeenCalled();
+    expect(result.summary).toBeNull();
+    expect(result.messages.at(-1)).toEqual({
+      role: 'user',
+      content: 'next question',
+    });
+  });
+
   it('drops oldest turns when nothing can be folded', async () => {
     const { service, ollama } = setup();
     // 4 messages × 338 tokens > trigger 750, but keep-4 forbids folding;
