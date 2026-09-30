@@ -1939,20 +1939,18 @@ function setup({
   },
 } = {}) {
   const summaries = {
-    findByChatId: jest
-      .fn()
-      .mockResolvedValue(
-        existingSummary
-          ? {
-              id: 's',
-              chat_id: 'chat-id',
-              token_count: 10,
-              created_at: now,
-              updated_at: now,
-              ...existingSummary,
-            }
-          : null,
-      ),
+    findByChatId: jest.fn().mockResolvedValue(
+      existingSummary
+        ? {
+            id: 's',
+            chat_id: 'chat-id',
+            token_count: 10,
+            created_at: now,
+            updated_at: now,
+            ...existingSummary,
+          }
+        : null,
+    ),
     upsert: jest.fn(
       (params: {
         content: string;
