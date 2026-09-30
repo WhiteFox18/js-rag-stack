@@ -90,6 +90,13 @@ export class OllamaClientService {
         clearTimeout(connectTimer);
       }
 
+      if (response.status === 404) {
+        throw new OllamaError(
+          'MODEL_NOT_AVAILABLE',
+          'The selected model is not installed.',
+        );
+      }
+
       if (!response.ok || !response.body) {
         throw new OllamaError(
           'OLLAMA_UNAVAILABLE',

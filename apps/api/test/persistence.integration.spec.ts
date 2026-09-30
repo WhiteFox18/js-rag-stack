@@ -246,6 +246,54 @@ describe('persistence foundation', () => {
     );
   });
 
+  it('excludes turns whose assistant reply failed or was cancelled from history', async () => {
+    const session = await createAnonymousSession();
+    const chat = await prisma.chat.create({
+      data: {
+        anonymous_session_id: session.id,
+        title: 'Incomplete turns',
+        selected_model: 'qwen2.5:1.5b',
+      },
+    });
+    redis_keys.add(chat.id);
+
+    const turns = [
+      ['first', 'COMPLETED'],
+      ['cancelled prompt', 'CANCELLED'],
+      ['failed prompt', 'FAILED'],
+      ['last', 'COMPLETED'],
+    ] as const;
+
+    for (const [prompt, status] of turns) {
+      await prisma.message.create({
+        data: {
+          chat_id: chat.id,
+          role: 'USER',
+          status: 'COMPLETED',
+          content: prompt,
+          token_count_source: 'ESTIMATED',
+        },
+      });
+      await prisma.message.create({
+        data: {
+          chat_id: chat.id,
+          role: 'ASSISTANT',
+          status,
+          content: `reply to ${prompt}`,
+          model: 'qwen2.5:1.5b',
+          token_count_source: 'UNKNOWN',
+        },
+      });
+    }
+
+    await expect(history.getHistory(chat.id)).resolves.toEqual([
+      { role: 'user', content: 'first' },
+      { role: 'assistant', content: 'reply to first', model: 'qwen2.5:1.5b' },
+      { role: 'user', content: 'last' },
+      { role: 'assistant', content: 'reply to last', model: 'qwen2.5:1.5b' },
+    ]);
+  });
+
   it('does not allow two holders of the same Redis lock', async () => {
     const key = `test-lock:${randomBytes(12).toString('hex')}`;
     redis_keys.add(key);

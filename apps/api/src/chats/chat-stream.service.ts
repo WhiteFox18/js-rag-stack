@@ -66,7 +66,7 @@ export class ChatStreamService {
 
     const chat = await this.ownership.findOwnedChat({ chatId, principal });
     const selectedModel = model ?? chat.selected_model;
-    await this.ollama.assertAvailable(selectedModel);
+    this.ollama.assertAllowed(selectedModel);
     const principalLock = await this.locks.acquirePrincipalGenerationLock({
       principal,
       slots: this.principalSlots,
@@ -172,6 +172,7 @@ export class ChatStreamService {
             assistantMessageId,
             content: assistantContent,
           });
+          await this.refreshHistory(chatId);
           emit({
             event: 'stream.cancelled',
             data: { assistantMessageId, status: 'cancelled' },
@@ -183,6 +184,7 @@ export class ChatStreamService {
             content: assistantContent,
             errorCode: publicError.code,
           });
+          await this.refreshHistory(chatId);
           emit({ event: 'stream.error', data: publicError });
         }
       } else {
@@ -191,6 +193,17 @@ export class ChatStreamService {
     } finally {
       clearInterval(lockRefresh);
       await Promise.allSettled([chatLock.release(), principalLock.release()]);
+    }
+  }
+
+  private async refreshHistory(chatId: string): Promise<void> {
+    try {
+      await this.history.refresh(chatId);
+    } catch (error) {
+      this.logger.warn(
+        `History cache refresh failed for chat ${chatId}: ${String(error)}`,
+      );
+      await this.history.invalidate(chatId);
     }
   }
 

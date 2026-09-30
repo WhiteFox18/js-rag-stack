@@ -42,7 +42,7 @@ export class ChatsService {
     ) {
       throw new PayloadTooLargeException('The first prompt is too long.');
     }
-    await this.ollama.assertAvailable(params.selectedModel);
+    this.ollama.assertAllowed(params.selectedModel);
     const chat = await this.repository.createChat({
       ...params,
       title:
@@ -87,7 +87,7 @@ export class ChatsService {
 
     await this.ownership.findOwnedChat(params);
     if (params.selectedModel) {
-      await this.ollama.assertAvailable(params.selectedModel);
+      this.ollama.assertAllowed(params.selectedModel);
     }
     return toChatSummary(await this.repository.updateChat(params));
   }

@@ -10,6 +10,7 @@ import {
 } from '../src/config/environment.schema';
 import { encodeSseEvent, encodeSseHeartbeat } from '../src/chats/sse.helpers';
 import { ChatStreamService } from '../src/chats/chat-stream.service';
+import { ChatsService } from '../src/chats/chats.service';
 import { HealthService } from '../src/health/health.service';
 
 describe('phase 4 Ollama and SSE contracts', () => {
@@ -114,7 +115,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
       release: jest.fn().mockResolvedValue(true),
     };
     const ollama = {
-      assertAvailable: jest.fn().mockResolvedValue(undefined),
+      assertAllowed: jest.fn(),
       streamChat: async function* () {
         await Promise.resolve();
         yield { delta: 'Hello ', done: false };
@@ -202,7 +203,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
         acquireGenerationLock: jest.fn().mockResolvedValue(lock),
       } as never,
       {
-        assertAvailable: jest.fn().mockResolvedValue(undefined),
+        assertAllowed: jest.fn(),
         streamChat: async function* () {
           await Promise.resolve();
           yield { delta: 'partial', done: false };
@@ -233,6 +234,91 @@ describe('phase 4 Ollama and SSE contracts', () => {
       event: 'stream.cancelled',
       data: { assistantMessageId: 'assistant-message', status: 'cancelled' },
     });
+  });
+
+  it('persists a failed generation and refreshes history when Ollama is down', async () => {
+    const repository = {
+      beginGeneration: jest.fn().mockResolvedValue({
+        userMessage: { id: 'user-message' },
+        assistantMessage: { id: 'assistant-message' },
+      }),
+      completeGeneration: jest.fn(),
+      endGeneration: jest.fn().mockResolvedValue(undefined),
+    };
+    const history = {
+      getHistory: jest.fn().mockResolvedValue([]),
+      append: jest.fn().mockResolvedValue(undefined),
+      refresh: jest.fn().mockResolvedValue(undefined),
+    };
+    const lock = {
+      extend: jest.fn().mockResolvedValue(true),
+      release: jest.fn().mockResolvedValue(true),
+    };
+    const service = new ChatStreamService(
+      repository as never,
+      {
+        findOwnedChat: jest
+          .fn()
+          .mockResolvedValue({ selected_model: 'qwen2.5:1.5b' }),
+      } as never,
+      history as never,
+      {
+        acquirePrincipalGenerationLock: jest.fn().mockResolvedValue(lock),
+        acquireGenerationLock: jest.fn().mockResolvedValue(lock),
+      } as never,
+      {
+        assertAllowed: jest.fn(),
+        // eslint-disable-next-line require-yield
+        streamChat: async function* () {
+          await Promise.resolve();
+          throw new OllamaError('OLLAMA_UNAVAILABLE', 'Ollama is unavailable.');
+        },
+      } as never,
+      config,
+    );
+    const events: ChatStreamEvent[] = [];
+
+    await service.stream({
+      chatId: 'chat-id',
+      principal: { type: 'anonymous', anonymous_session_id: 'anonymous-id' },
+      content: 'Current',
+      signal: new AbortController().signal,
+      emit: (event) => events.push(event),
+    });
+
+    expect(repository.beginGeneration).toHaveBeenCalled();
+    expect(repository.endGeneration).toHaveBeenCalledWith({
+      assistantMessageId: 'assistant-message',
+      content: '',
+      errorCode: 'OLLAMA_UNAVAILABLE',
+    });
+    expect(history.refresh).toHaveBeenCalledWith('chat-id');
+    expect(events.at(-1)).toEqual({
+      event: 'stream.error',
+      data: { code: 'OLLAMA_UNAVAILABLE', message: 'Ollama is unavailable.' },
+    });
+  });
+
+  it('creates chats without contacting Ollama', async () => {
+    const createChat = jest.fn().mockResolvedValue(createChatRecord());
+    const ollama = { assertAllowed: jest.fn(), assertAvailable: jest.fn() };
+    const service = new ChatsService(
+      { createChat } as never,
+      {} as never,
+      {} as never,
+      ollama as never,
+      config,
+    );
+
+    await service.create({
+      principal: { type: 'anonymous', anonymous_session_id: 'anonymous-id' },
+      title: '',
+      selectedModel: 'qwen2.5:1.5b',
+    });
+
+    expect(ollama.assertAllowed).toHaveBeenCalledWith('qwen2.5:1.5b');
+    expect(ollama.assertAvailable).not.toHaveBeenCalled();
+    expect(createChat).toHaveBeenCalled();
   });
 
   it('reports Ollama downtime as degraded without failing core readiness', async () => {
@@ -267,5 +353,20 @@ function createAssistantMessage(content: string) {
     error_code: null,
     created_at: now,
     updated_at: now,
+  };
+}
+
+function createChatRecord() {
+  const now = new Date('2026-06-14T12:00:00.000Z');
+  return {
+    id: 'chat-id',
+    user_id: null,
+    anonymous_session_id: 'anonymous-id',
+    title: 'New chat',
+    selected_model: 'qwen2.5:1.5b',
+    archived_at: null,
+    created_at: now,
+    updated_at: now,
+    last_message_at: now,
   };
 }

@@ -27,9 +27,9 @@ export class ChatsRepository {
     });
   }
 
-  findCompletedMessages(chatId: string): Promise<Message[]> {
+  findMessagesForHistory(chatId: string): Promise<Message[]> {
     return this.prisma.message.findMany({
-      where: { chat_id: chatId, status: 'COMPLETED' },
+      where: { chat_id: chatId },
       orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
     });
   }
