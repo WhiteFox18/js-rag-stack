@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
+import { SendIcon, StopIcon } from '../../components/icons';
 import type { ComposerProps } from './chat.types';
 
 const MAX_CHARS = 12_000;
+const COUNTER_THRESHOLD = MAX_CHARS * 0.9;
 
 function readDraft(key: string): string {
   try {
@@ -25,16 +27,22 @@ export function Composer({
   draftKey,
   isBusy,
   disabled,
+  insertion = null,
   onSend,
   onStop,
 }: ComposerProps) {
   const [text, setText] = useState(() => readDraft(draftKey));
   const [loadedKey, setLoadedKey] = useState(draftKey);
+  const [appliedInsertionId, setAppliedInsertionId] = useState<number | null>(
+    null,
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const hintId = useId();
   // A rejected send restores its text; if the draft key changes afterwards
   // (new chat navigation committing late), carry that text to the new key.
   const [restored, setRestored] = useState<string | null>(null);
   const trimmed = text.trim();
+  const insertionId = insertion?.id ?? null;
 
   if (loadedKey !== draftKey) {
     setRestored(null);
@@ -46,6 +54,26 @@ export function Composer({
       writeDraft({ key: draftKey, value: restored });
     }
   }
+
+  if (insertion && insertion.id !== appliedInsertionId) {
+    setAppliedInsertionId(insertion.id);
+    setRestored(null);
+    setText(insertion.text);
+    writeDraft({ key: draftKey, value: insertion.text });
+  }
+
+  useEffect(() => {
+    if (insertionId !== null) textareaRef.current?.focus();
+  }, [insertionId]);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    if (textarea.scrollHeight > 0) {
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [text]);
 
   const update = (value: string) => {
     setRestored(null);
@@ -80,41 +108,54 @@ export function Composer({
   return (
     <form
       onSubmit={(event) => void submit(event)}
-      className="sticky bottom-0 border-t border-slate-800 bg-slate-950/95 px-4 py-3 backdrop-blur"
+      className="shrink-0 px-4 pt-2 pb-3"
     >
-      <div className="mx-auto flex max-w-3xl items-end gap-2">
-        <label htmlFor="composer-input" className="sr-only">
-          Message
-        </label>
-        <textarea
-          id="composer-input"
-          ref={textareaRef}
-          value={text}
-          rows={2}
-          maxLength={MAX_CHARS}
-          disabled={disabled}
-          placeholder="Send a message… (Enter to send, Shift+Enter for a new line)"
-          onChange={(event) => update(event.target.value)}
-          onKeyDown={onKeyDown}
-          className="max-h-48 min-h-12 flex-1 resize-y rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 disabled:opacity-60"
-        />
-        {isBusy ? (
-          <button
-            type="button"
-            onClick={onStop}
-            className="rounded-xl border border-rose-400/60 px-4 py-2 text-sm font-semibold text-rose-200 hover:bg-rose-500/10"
-          >
-            Stop
-          </button>
-        ) : (
-          <button
-            type="submit"
-            disabled={disabled || !trimmed}
-            className="rounded-xl bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-300 disabled:opacity-50"
-          >
-            Send
-          </button>
-        )}
+      <div className="mx-auto max-w-3xl">
+        <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface py-2 pr-2 pl-4 shadow-sm focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/25">
+          <label htmlFor="composer-input" className="sr-only">
+            Message
+          </label>
+          <textarea
+            id="composer-input"
+            ref={textareaRef}
+            value={text}
+            rows={1}
+            maxLength={MAX_CHARS}
+            disabled={disabled}
+            aria-describedby={hintId}
+            placeholder="Message the model…"
+            onChange={(event) => update(event.target.value)}
+            onKeyDown={onKeyDown}
+            className="max-h-52 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-[15px] leading-6 text-fg placeholder:text-fg-subtle focus:outline-none disabled:opacity-60"
+          />
+          {isBusy ? (
+            <button
+              type="button"
+              aria-label="Stop"
+              onClick={onStop}
+              className="grid size-8 shrink-0 place-items-center rounded-full bg-fg text-bg hover:opacity-90"
+            >
+              <StopIcon className="size-3.5" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              aria-label="Send"
+              disabled={disabled || !trimmed}
+              className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-accent-fg hover:bg-accent-hover disabled:opacity-40"
+            >
+              <SendIcon className="size-4" />
+            </button>
+          )}
+        </div>
+        <div className="mt-1.5 flex justify-between gap-3 px-1 text-xs text-fg-subtle">
+          <p id={hintId}>Enter to send · Shift+Enter for a new line</p>
+          {text.length > COUNTER_THRESHOLD ? (
+            <p aria-live="polite">
+              {text.length} / {MAX_CHARS}
+            </p>
+          ) : null}
+        </div>
       </div>
     </form>
   );

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Composer } from './composer';
@@ -71,5 +71,83 @@ describe('Composer', () => {
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Stop' }));
     expect(onStop).toHaveBeenCalledOnce();
+  });
+
+  it('shows a character counter only near the limit', () => {
+    render(
+      <Composer
+        draftKey="d"
+        isBusy={false}
+        disabled={false}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+      />,
+    );
+    const input = screen.getByLabelText('Message');
+    fireEvent.change(input, { target: { value: 'x'.repeat(10_800) } });
+    expect(screen.queryByText(/\/ 12000/)).toBeNull();
+    fireEvent.change(input, { target: { value: 'x'.repeat(10_801) } });
+    expect(screen.getByText('10801 / 12000')).toBeInTheDocument();
+  });
+
+  it('describes the keyboard shortcuts', () => {
+    render(
+      <Composer
+        draftKey="d"
+        isBusy={false}
+        disabled={false}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('Message')).toHaveAccessibleDescription(
+      'Enter to send · Shift+Enter for a new line',
+    );
+  });
+
+  it('grows with its content', () => {
+    render(
+      <Composer
+        draftKey="d"
+        isBusy={false}
+        disabled={false}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+      />,
+    );
+    const input = screen.getByLabelText<HTMLTextAreaElement>('Message');
+    Object.defineProperty(input, 'scrollHeight', {
+      configurable: true,
+      value: 120,
+    });
+    fireEvent.change(input, { target: { value: 'a\nb\nc\nd' } });
+    expect(input.style.height).toBe('120px');
+  });
+
+  it('applies inserted text and focuses the field', () => {
+    const { rerender } = render(
+      <Composer
+        draftKey="d"
+        isBusy={false}
+        disabled={false}
+        insertion={null}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+      />,
+    );
+    rerender(
+      <Composer
+        draftKey="d"
+        isBusy={false}
+        disabled={false}
+        insertion={{ id: 1, text: 'Explain SSE' }}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+      />,
+    );
+    const input = screen.getByLabelText('Message');
+    expect(input).toHaveValue('Explain SSE');
+    expect(input).toHaveFocus();
+    expect(localStorage.getItem('d')).toBe('Explain SSE');
   });
 });

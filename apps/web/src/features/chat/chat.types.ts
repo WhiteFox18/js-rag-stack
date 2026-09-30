@@ -73,10 +73,16 @@ export interface ModelSelectorProps {
   onChange: (model: string) => void;
 }
 
+export interface ComposerInsertion {
+  id: number;
+  text: string;
+}
+
 export interface ComposerProps {
   draftKey: string;
   isBusy: boolean;
   disabled: boolean;
+  insertion?: ComposerInsertion | null;
   onSend: (content: string) => Promise<boolean>;
   onStop: () => void;
 }
