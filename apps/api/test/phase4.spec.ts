@@ -1,3 +1,4 @@
+import { PayloadTooLargeException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { ChatStreamEvent } from '@js-rag-stack/contracts';
 import { OllamaClientService } from '../src/ollama/ollama-client.service';
@@ -171,6 +172,18 @@ describe('phase 4 Ollama and SSE contracts', () => {
   });
 
   it('persists completion metadata and keeps cache history in sync', async () => {
+    const contextWindow = {
+      assertContentFits: jest.fn(),
+      buildPrompt: jest.fn(
+        ({ onSummarizing }: { onSummarizing: () => void }) => {
+          onSummarizing();
+          return Promise.resolve({
+            messages: [{ role: 'user', content: 'Current' }],
+            summary: null,
+          });
+        },
+      ),
+    };
     const completedMessage = createAssistantMessage('Hello back');
     const repository = {
       beginGeneration: jest.fn().mockResolvedValue({
@@ -220,6 +233,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
         acquireGenerationLock: jest.fn().mockResolvedValue(lock),
       } as never,
       ollama as never,
+      contextWindow as never,
       config,
     );
     const events: ChatStreamEvent[] = [];
@@ -245,13 +259,84 @@ describe('phase 4 Ollama and SSE contracts', () => {
     expect(history.refresh).toHaveBeenCalledWith('chat-id');
     expect(events.map((event) => event.event)).toEqual([
       'stream.started',
+      'context.summarizing',
       'message.delta',
       'message.delta',
       'message.completed',
+      'context.updated',
     ]);
+    expect(events.at(-1)).toEqual({
+      event: 'context.updated',
+      data: {
+        usedTokens: 14,
+        maxTokens: 8192,
+        summary: null,
+        summarizedThroughMessageId: null,
+      },
+    });
+    expect(contextWindow.buildPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId: 'chat-id',
+        content: 'Current',
+        history: [{ id: 'earlier', role: 'user', content: 'Earlier' }],
+      }),
+    );
+  });
+
+  it('rejects an oversized message before locking or creating message rows', async () => {
+    const repository = { beginGeneration: jest.fn() };
+    const locks = {
+      acquirePrincipalGenerationLock: jest.fn(),
+      acquireGenerationLock: jest.fn(),
+    };
+    const service = new ChatStreamService(
+      repository as never,
+      {
+        findOwnedChat: jest
+          .fn()
+          .mockResolvedValue({ selected_model: createModelRecord() }),
+      } as never,
+      {} as never,
+      locks as never,
+      {
+        assertAllowed: jest.fn().mockResolvedValue(createModelRecord()),
+      } as never,
+      {
+        assertContentFits: jest.fn(() => {
+          throw new PayloadTooLargeException(
+            "The message is too long for this model's context.",
+          );
+        }),
+      } as never,
+      config,
+    );
+
+    await expect(
+      service.stream({
+        chatId: 'chat-id',
+        principal: { type: 'anonymous', anonymous_session_id: 'anonymous-id' },
+        content: 'huge',
+        signal: new AbortController().signal,
+        emit: jest.fn(),
+      }),
+    ).rejects.toBeInstanceOf(PayloadTooLargeException);
+    expect(repository.beginGeneration).not.toHaveBeenCalled();
+    expect(locks.acquirePrincipalGenerationLock).not.toHaveBeenCalled();
   });
 
   it('persists a partial response as cancelled when the caller aborts', async () => {
+    const contextWindow = {
+      assertContentFits: jest.fn(),
+      buildPrompt: jest.fn(
+        ({ onSummarizing }: { onSummarizing: () => void }) => {
+          onSummarizing();
+          return Promise.resolve({
+            messages: [{ role: 'user', content: 'Current' }],
+            summary: null,
+          });
+        },
+      ),
+    };
     const controller = new AbortController();
     const repository = {
       beginGeneration: jest.fn().mockResolvedValue({
@@ -290,6 +375,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
           throw new Error('aborted');
         },
       } as never,
+      contextWindow as never,
       config,
     );
     const events: ChatStreamEvent[] = [];
@@ -316,6 +402,18 @@ describe('phase 4 Ollama and SSE contracts', () => {
   });
 
   it('persists a failed generation and refreshes history when Ollama is down', async () => {
+    const contextWindow = {
+      assertContentFits: jest.fn(),
+      buildPrompt: jest.fn(
+        ({ onSummarizing }: { onSummarizing: () => void }) => {
+          onSummarizing();
+          return Promise.resolve({
+            messages: [{ role: 'user', content: 'Current' }],
+            summary: null,
+          });
+        },
+      ),
+    };
     const repository = {
       beginGeneration: jest.fn().mockResolvedValue({
         userMessage: { id: 'user-message' },
@@ -353,6 +451,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
           throw new OllamaError('OLLAMA_UNAVAILABLE', 'Ollama is unavailable.');
         },
       } as never,
+      contextWindow as never,
       config,
     );
     const events: ChatStreamEvent[] = [];

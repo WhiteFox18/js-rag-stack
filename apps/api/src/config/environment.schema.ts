@@ -41,8 +41,6 @@ const environmentSchema = z
       .positive()
       .default(300_000),
     CHAT_MAX_MESSAGE_CHARS: z.coerce.number().int().positive().default(12_000),
-    CHAT_MAX_HISTORY_MESSAGES: z.coerce.number().int().positive().default(100),
-    CHAT_MAX_HISTORY_CHARS: z.coerce.number().int().positive().default(100_000),
     CHAT_MAX_RESPONSE_CHARS: z.coerce
       .number()
       .int()

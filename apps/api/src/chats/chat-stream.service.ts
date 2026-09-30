@@ -9,18 +9,21 @@ import type { AppEnvironment } from '../config/environment.schema';
 import { OllamaService } from '../ollama/ollama.service';
 import type { OllamaChatChunk } from '../ollama/ollama.types';
 import { ChatHistoryService } from './chat-history.service';
-import { getPublicStreamError, toChatMessage } from './chats.helpers';
+import { ContextWindowService } from './context-window.service';
+import {
+  getPublicStreamError,
+  toChatContext,
+  toChatMessage,
+} from './chats.helpers';
 import { ChatOwnershipService } from './chat-ownership.service';
 import { ChatsRepository } from './chats.repository';
-import type { ChatHistoryEntry, StreamChatParams } from './chats.types';
+import type { StreamChatParams } from './chats.types';
 import { RedisLockService } from './redis-lock.service';
 
 @Injectable()
 export class ChatStreamService {
   private readonly logger = new Logger(ChatStreamService.name);
   private readonly maxMessageChars: number;
-  private readonly maxHistoryMessages: number;
-  private readonly maxHistoryChars: number;
   private readonly maxResponseChars: number;
   private readonly principalSlots: number;
   private readonly lockTtlMs: number;
@@ -31,15 +34,10 @@ export class ChatStreamService {
     private readonly history: ChatHistoryService,
     private readonly locks: RedisLockService,
     private readonly ollama: OllamaService,
+    private readonly contextWindow: ContextWindowService,
     config: ConfigService<AppEnvironment, true>,
   ) {
     this.maxMessageChars = config.get('CHAT_MAX_MESSAGE_CHARS', {
-      infer: true,
-    });
-    this.maxHistoryMessages = config.get('CHAT_MAX_HISTORY_MESSAGES', {
-      infer: true,
-    });
-    this.maxHistoryChars = config.get('CHAT_MAX_HISTORY_CHARS', {
       infer: true,
     });
     this.maxResponseChars = config.get('CHAT_MAX_RESPONSE_CHARS', {
@@ -68,6 +66,7 @@ export class ChatStreamService {
     const selectedModel = await this.ollama.assertAllowed(
       model ?? chat.selected_model.name,
     );
+    this.contextWindow.assertContentFits({ model: selectedModel, content });
     const principalLock = await this.locks.acquirePrincipalGenerationLock({
       principal,
       slots: this.principalSlots,
@@ -99,7 +98,7 @@ export class ChatStreamService {
     );
 
     try {
-      const history = this.limitHistory(await this.history.getHistory(chatId));
+      const history = await this.history.getHistory(chatId);
       const messages = await this.repository.beginGeneration({
         chatId,
         content,
@@ -120,16 +119,19 @@ export class ChatStreamService {
         },
       });
 
+      const prompt = await this.contextWindow.buildPrompt({
+        chatId,
+        model: selectedModel,
+        history,
+        content,
+        signal,
+        onSummarizing: () => emit({ event: 'context.summarizing', data: {} }),
+      });
+
       let finalChunk: OllamaChatChunk | undefined;
       for await (const chunk of this.ollama.streamChat({
         model: selectedModel.name,
-        messages: [
-          ...history.map(({ role, content: historyContent }) => ({
-            role,
-            content: historyContent,
-          })),
-          { role: 'user', content },
-        ],
+        messages: prompt.messages,
         contextTokens: selectedModel.max_context,
         signal,
       })) {
@@ -166,6 +168,14 @@ export class ChatStreamService {
       emit({
         event: 'message.completed',
         data: { message: toChatMessage(completed) },
+      });
+      emit({
+        event: 'context.updated',
+        data: toChatContext({
+          maxTokens: selectedModel.max_context,
+          summary: prompt.summary,
+          lastAssistantMessage: completed,
+        }),
       });
     } catch (error) {
       if (assistantMessageId) {
@@ -207,18 +217,5 @@ export class ChatStreamService {
       );
       await this.history.invalidate(chatId);
     }
-  }
-
-  private limitHistory(history: ChatHistoryEntry[]): ChatHistoryEntry[] {
-    const limited: ChatHistoryEntry[] = [];
-    let characters = 0;
-
-    for (const entry of history.slice(-this.maxHistoryMessages).reverse()) {
-      if (characters + entry.content.length > this.maxHistoryChars) break;
-      limited.push(entry);
-      characters += entry.content.length;
-    }
-
-    return limited.reverse();
   }
 }
