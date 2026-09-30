@@ -51,7 +51,7 @@ describe('MessageList', () => {
     expect(screen.getByText('Stopped')).toBeInTheDocument();
   });
 
-  it('renders assistant replies as markdown and user prompts as wrapped text', () => {
+  it('renders assistant replies as markdown and user prompts as wrapped text', async () => {
     render(
       <Harness
         {...base}
@@ -62,7 +62,7 @@ describe('MessageList', () => {
         ]}
       />,
     );
-    expect(screen.getByText('bold').tagName).toBe('STRONG');
+    expect((await screen.findByText('bold')).tagName).toBe('STRONG');
     const prompt = screen.getByText(/\*\*not bold\*\*/);
     expect(prompt.tagName).toBe('P');
     expect(prompt).toHaveClass('break-words');

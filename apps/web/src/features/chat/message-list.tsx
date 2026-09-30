@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { CopyButton } from '../../components/copy-button';
 import { ArrowDownIcon } from '../../components/icons';
 import {
@@ -11,7 +12,24 @@ import type {
   MessageListProps,
   UserMessageProps,
 } from './chat.types';
-import { MarkdownContent } from './markdown';
+import type { MarkdownContentProps } from './chat.types';
+
+// react-markdown and remark-gfm are heavy; keep them out of the entry chunk.
+const MarkdownContent = lazy(() =>
+  import('./markdown').then((module) => ({ default: module.MarkdownContent })),
+);
+
+function LazyMarkdown(props: MarkdownContentProps) {
+  return (
+    <Suspense
+      fallback={
+        <p className="break-words whitespace-pre-wrap">{props.content}</p>
+      }
+    >
+      <MarkdownContent {...props} />
+    </Suspense>
+  );
+}
 
 const STATUS_CHIP = {
   failed: { label: 'Response failed', className: 'bg-danger-soft text-danger' },
@@ -74,7 +92,7 @@ function AssistantMessage({
         className="text-[15px] text-fg"
       >
         {content ? (
-          <MarkdownContent content={content} streaming={streaming} />
+          <LazyMarkdown content={content} streaming={streaming} />
         ) : streaming ? (
           <ThinkingIndicator />
         ) : null}
