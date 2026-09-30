@@ -3,8 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import type { AppEnvironment } from '../config/environment.schema';
 import { OllamaError } from './ollama.errors';
 import type {
+  CompleteOllamaChatParams,
   OllamaChatChunk,
   OllamaChatResponse,
+  OllamaCompletion,
+  OllamaRequestParams,
   OllamaTagsResponse,
   StreamOllamaChatParams,
 } from './ollama.types';
@@ -59,11 +62,54 @@ export class OllamaClientService {
       .filter((model): model is string => Boolean(model));
   }
 
-  async *streamChat({
+  streamChat({
     model,
     messages,
+    contextTokens,
     signal,
   }: StreamOllamaChatParams): AsyncGenerator<OllamaChatChunk> {
+    return this.streamRequest({
+      model,
+      messages,
+      options: { num_ctx: contextTokens },
+      signal,
+    });
+  }
+
+  // Streams internally so the first-token and idle timeouts still apply.
+  async complete({
+    model,
+    messages,
+    contextTokens,
+    maxTokens,
+    signal,
+  }: CompleteOllamaChatParams): Promise<OllamaCompletion> {
+    let content = '';
+    let finalChunk: OllamaChatChunk | undefined;
+
+    for await (const chunk of this.streamRequest({
+      model,
+      messages,
+      options: { num_ctx: contextTokens, num_predict: maxTokens },
+      signal,
+    })) {
+      content += chunk.delta;
+      if (chunk.done) finalChunk = chunk;
+    }
+
+    return {
+      content,
+      promptTokens: finalChunk?.promptTokens,
+      completionTokens: finalChunk?.completionTokens,
+    };
+  }
+
+  private async *streamRequest({
+    model,
+    messages,
+    options,
+    signal,
+  }: OllamaRequestParams): AsyncGenerator<OllamaChatChunk> {
     const controller = new AbortController();
     const abortFromCaller = () => controller.abort(signal?.reason);
     signal?.addEventListener('abort', abortFromCaller, { once: true });
@@ -83,7 +129,7 @@ export class OllamaClientService {
         response = await fetch(`${this.baseUrl}/api/chat`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ model, messages, stream: true }),
+          body: JSON.stringify({ model, messages, stream: true, options }),
           signal: controller.signal,
         });
       } finally {

@@ -5,7 +5,12 @@ import type { Model } from '../generated/prisma/client';
 import { ModelsRepository } from './models.repository';
 import { OllamaClientService } from './ollama-client.service';
 import { OllamaError } from './ollama.errors';
-import type { OllamaModel, StreamOllamaChatParams } from './ollama.types';
+import type {
+  CompleteOllamaChatParams,
+  OllamaCompletion,
+  OllamaModel,
+  StreamOllamaChatParams,
+} from './ollama.types';
 
 @Injectable()
 export class OllamaService implements OnApplicationBootstrap {
@@ -73,6 +78,10 @@ export class OllamaService implements OnApplicationBootstrap {
   // Callers resolve the model row with assertAllowed() before streaming.
   streamChat(params: StreamOllamaChatParams) {
     return this.client.streamChat(params);
+  }
+
+  complete(params: CompleteOllamaChatParams): Promise<OllamaCompletion> {
+    return this.client.complete(params);
   }
 
   async ping(): Promise<void> {

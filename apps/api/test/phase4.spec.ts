@@ -81,7 +81,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
         controller.close();
       },
     });
-    jest
+    const fetchSpy = jest
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response(body, { status: 200 }));
     const client = new OllamaClientService(config);
@@ -90,6 +90,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
     for await (const chunk of client.streamChat({
       model: 'qwen2.5:1.5b',
       messages: [{ role: 'user', content: 'Hello' }],
+      contextTokens: 8192,
     })) {
       chunks.push(chunk);
     }
@@ -105,6 +106,56 @@ describe('phase 4 Ollama and SSE contracts', () => {
       },
     ]);
     expect(JSON.stringify(chunks)).not.toContain('secret');
+    const request = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(request.body as string)).toEqual({
+      model: 'qwen2.5:1.5b',
+      messages: [{ role: 'user', content: 'Hello' }],
+      stream: true,
+      options: { num_ctx: 8192 },
+    });
+  });
+
+  it('collects a bounded completion for summaries', async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode('{"message":{"content":"Short "},"done":false}\n'),
+        );
+        controller.enqueue(
+          encoder.encode(
+            '{"message":{"content":"summary"},"done":true,"prompt_eval_count":40,"eval_count":3}\n',
+          ),
+        );
+        controller.close();
+      },
+    });
+    const fetchSpy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(body, { status: 200 }));
+    const client = new OllamaClientService(config);
+
+    await expect(
+      client.complete({
+        model: 'qwen2.5:1.5b',
+        messages: [
+          { role: 'system', content: 'Summarize.' },
+          { role: 'user', content: 'Text' },
+        ],
+        contextTokens: 8192,
+        maxTokens: 819,
+      }),
+    ).resolves.toEqual({
+      content: 'Short summary',
+      promptTokens: 40,
+      completionTokens: 3,
+    });
+    const request = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(request.body as string)).toEqual(
+      expect.objectContaining({
+        options: { num_ctx: 8192, num_predict: 819 },
+      }),
+    );
   });
 
   it('encodes named SSE frames and proxy heartbeats', () => {

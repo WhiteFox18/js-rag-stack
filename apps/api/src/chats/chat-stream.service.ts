@@ -65,9 +65,9 @@ export class ChatStreamService {
     }
 
     const chat = await this.ownership.findOwnedChat({ chatId, principal });
-    const selectedModel = (
-      await this.ollama.assertAllowed(model ?? chat.selected_model.name)
-    ).name;
+    const selectedModel = await this.ollama.assertAllowed(
+      model ?? chat.selected_model.name,
+    );
     const principalLock = await this.locks.acquirePrincipalGenerationLock({
       principal,
       slots: this.principalSlots,
@@ -103,7 +103,7 @@ export class ChatStreamService {
       const messages = await this.repository.beginGeneration({
         chatId,
         content,
-        model: selectedModel,
+        model: selectedModel.name,
       });
       assistantMessageId = messages.assistantMessage.id;
       await this.history.append({
@@ -116,13 +116,13 @@ export class ChatStreamService {
           chatId,
           userMessageId: messages.userMessage.id,
           assistantMessageId,
-          model: selectedModel,
+          model: selectedModel.name,
         },
       });
 
       let finalChunk: OllamaChatChunk | undefined;
       for await (const chunk of this.ollama.streamChat({
-        model: selectedModel,
+        model: selectedModel.name,
         messages: [
           ...history.map(({ role, content: historyContent }) => ({
             role,
@@ -130,6 +130,7 @@ export class ChatStreamService {
           })),
           { role: 'user', content },
         ],
+        contextTokens: selectedModel.max_context,
         signal,
       })) {
         if (chunk.delta) {

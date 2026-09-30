@@ -1,5 +1,5 @@
 export interface OllamaHistoryMessage {
-  role: 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
@@ -20,6 +20,24 @@ export interface OllamaChatChunk {
 export interface StreamOllamaChatParams {
   model: string;
   messages: OllamaHistoryMessage[];
+  contextTokens: number;
+  signal?: AbortSignal;
+}
+
+export interface CompleteOllamaChatParams extends StreamOllamaChatParams {
+  maxTokens: number;
+}
+
+export interface OllamaCompletion {
+  content: string;
+  promptTokens?: number;
+  completionTokens?: number;
+}
+
+export interface OllamaRequestParams {
+  model: string;
+  messages: OllamaHistoryMessage[];
+  options: { num_ctx: number; num_predict?: number };
   signal?: AbortSignal;
 }
 
