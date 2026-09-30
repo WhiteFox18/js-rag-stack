@@ -108,7 +108,7 @@ export class ChatStreamService {
       assistantMessageId = messages.assistantMessage.id;
       await this.history.append({
         chatId,
-        entry: { role: 'user', content },
+        entry: { id: messages.userMessage.id, role: 'user', content },
       });
       emit({
         event: 'stream.started',

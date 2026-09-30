@@ -14,8 +14,13 @@ import type {
 } from './chats.types';
 
 const history_entry_schema = z.discriminatedUnion('role', [
-  z.object({ role: z.literal('user'), content: z.string() }),
   z.object({
+    id: z.string().min(1),
+    role: z.literal('user'),
+    content: z.string(),
+  }),
+  z.object({
+    id: z.string().min(1),
     role: z.literal('assistant'),
     content: z.string(),
     model: z.string().min(1),
@@ -121,7 +126,11 @@ export class ChatHistoryService {
       )
       .map((message) => {
         if (message.role === 'USER') {
-          return { role: 'user' as const, content: message.content };
+          return {
+            id: message.id,
+            role: 'user' as const,
+            content: message.content,
+          };
         }
 
         if (!message.model) {
@@ -129,6 +138,7 @@ export class ChatHistoryService {
         }
 
         return {
+          id: message.id,
           role: 'assistant' as const,
           content: message.content,
           model: message.model,

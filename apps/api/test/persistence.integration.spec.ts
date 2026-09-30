@@ -19,6 +19,8 @@ import { HealthRepository } from '../src/health/health.repository';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { RedisService } from '../src/redis/redis.service';
 
+const anyString = (): string => expect.any(String) as string;
+
 describe('persistence foundation', () => {
   let prisma: PrismaService;
   let redis: RedisService;
@@ -194,7 +196,7 @@ describe('persistence foundation', () => {
     });
     redis_keys.add(chat.id);
 
-    await prisma.message.create({
+    const hello = await prisma.message.create({
       data: {
         chat_id: chat.id,
         role: 'USER',
@@ -205,13 +207,13 @@ describe('persistence foundation', () => {
     });
 
     await expect(history.getHistory(chat.id)).resolves.toEqual([
-      { role: 'user', content: 'Hello' },
+      { id: hello.id, role: 'user', content: 'Hello' },
     ]);
     await expect(redis.get(chat.id)).resolves.toBe(
-      JSON.stringify([{ role: 'user', content: 'Hello' }]),
+      JSON.stringify([{ id: hello.id, role: 'user', content: 'Hello' }]),
     );
 
-    await prisma.message.create({
+    const hi = await prisma.message.create({
       data: {
         chat_id: chat.id,
         role: 'ASSISTANT',
@@ -232,15 +234,16 @@ describe('persistence foundation', () => {
       ttlSeconds: 60,
     });
     await expect(history.getHistory(chat.id)).resolves.toEqual([
-      { role: 'user', content: 'Hello' },
+      { id: hello.id, role: 'user', content: 'Hello' },
       {
+        id: hi.id,
         role: 'assistant',
         content: 'Hi',
         model: 'qwen2.5:1.5b',
       },
     ]);
 
-    await prisma.message.create({
+    const followUp = await prisma.message.create({
       data: {
         chat_id: chat.id,
         role: 'USER',
@@ -252,21 +255,30 @@ describe('persistence foundation', () => {
     await history.append({
       chatId: chat.id,
       entry: {
+        id: followUp.id,
         role: 'user',
         content: 'Cached follow-up',
       },
     });
     await expect(redis.get(chat.id)).resolves.toBe(
       JSON.stringify([
-        { role: 'user', content: 'Hello' },
+        { id: hello.id, role: 'user', content: 'Hello' },
         {
+          id: hi.id,
           role: 'assistant',
           content: 'Hi',
           model: 'qwen2.5:1.5b',
         },
-        { role: 'user', content: 'Cached follow-up' },
+        { id: followUp.id, role: 'user', content: 'Cached follow-up' },
       ]),
     );
+
+    await redis.setWithTtl({
+      key: chat.id,
+      value: JSON.stringify([{ role: 'user', content: 'Hello' }]),
+      ttlSeconds: 60,
+    });
+    await expect(history.getHistory(chat.id)).resolves.toHaveLength(3);
   });
 
   it('excludes turns whose assistant reply failed or was cancelled from history', async () => {
@@ -310,10 +322,20 @@ describe('persistence foundation', () => {
     }
 
     await expect(history.getHistory(chat.id)).resolves.toEqual([
-      { role: 'user', content: 'first' },
-      { role: 'assistant', content: 'reply to first', model: 'qwen2.5:1.5b' },
-      { role: 'user', content: 'last' },
-      { role: 'assistant', content: 'reply to last', model: 'qwen2.5:1.5b' },
+      { id: anyString(), role: 'user', content: 'first' },
+      {
+        id: anyString(),
+        role: 'assistant',
+        content: 'reply to first',
+        model: 'qwen2.5:1.5b',
+      },
+      { id: anyString(), role: 'user', content: 'last' },
+      {
+        id: anyString(),
+        role: 'assistant',
+        content: 'reply to last',
+        model: 'qwen2.5:1.5b',
+      },
     ]);
   });
 

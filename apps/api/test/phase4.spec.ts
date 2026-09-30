@@ -183,7 +183,9 @@ describe('phase 4 Ollama and SSE contracts', () => {
     const history = {
       getHistory: jest
         .fn()
-        .mockResolvedValue([{ role: 'user', content: 'Earlier' }]),
+        .mockResolvedValue([
+          { id: 'earlier', role: 'user', content: 'Earlier' },
+        ]),
       append: jest.fn().mockResolvedValue(undefined),
       refresh: jest.fn().mockResolvedValue(undefined),
     };

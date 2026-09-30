@@ -31,8 +31,8 @@ export interface UpdateChatRecordParams {
 }
 
 export type ChatHistoryEntry =
-  | { role: 'user'; content: string }
-  | { role: 'assistant'; content: string; model: string };
+  | { id: string; role: 'user'; content: string }
+  | { id: string; role: 'assistant'; content: string; model: string };
 
 export interface FindOwnedChatParams {
   chatId: string;
