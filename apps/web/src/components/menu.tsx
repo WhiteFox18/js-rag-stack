@@ -1,10 +1,37 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import type { KeyboardEvent } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
 import type { MenuProps } from './components.types';
 import { MoreIcon } from './icons';
 
+const ITEM_HEIGHT_PX = 36;
+const MENU_PADDING_PX = 8;
+const GAP_PX = 4;
+
+function placeMenu({
+  trigger,
+  itemCount,
+}: {
+  trigger: DOMRect;
+  itemCount: number;
+}): CSSProperties {
+  const height = itemCount * ITEM_HEIGHT_PX + MENU_PADDING_PX;
+  const right = window.innerWidth - trigger.right;
+  const fitsBelow = trigger.bottom + GAP_PX + height <= window.innerHeight;
+  return fitsBelow
+    ? { position: 'fixed', right, top: trigger.bottom + GAP_PX }
+    : {
+        position: 'fixed',
+        right,
+        bottom: window.innerHeight - trigger.top + GAP_PX,
+      };
+}
+
 export function Menu({ label, items, triggerClassName = '' }: MenuProps) {
-  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<CSSProperties | null>(null);
+  const open = position !== null;
+  const setOpen = (next: boolean) => {
+    if (!next) setPosition(null);
+  };
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
@@ -15,8 +42,24 @@ export function Menu({ label, items, triggerClassName = '' }: MenuProps) {
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
+    // A fixed menu would drift from its trigger, so close it instead.
+    const close = (event: Event) => {
+      if (
+        event.target instanceof Node &&
+        rootRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+      setPosition(null);
+    };
     document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
+    window.addEventListener('resize', close);
+    window.addEventListener('scroll', close, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
+    };
   }, [open]);
 
   const closeAndRefocus = () => {
@@ -54,7 +97,18 @@ export function Menu({ label, items, triggerClassName = '' }: MenuProps) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        onClick={() => setOpen((current) => !current)}
+        onClick={(event) => {
+          if (open) {
+            setPosition(null);
+            return;
+          }
+          setPosition(
+            placeMenu({
+              trigger: event.currentTarget.getBoundingClientRect(),
+              itemCount: items.length,
+            }),
+          );
+        }}
         className={triggerClassName}
       >
         <MoreIcon className="size-4" />
@@ -65,7 +119,8 @@ export function Menu({ label, items, triggerClassName = '' }: MenuProps) {
           role="menu"
           aria-label={label}
           onKeyDown={onMenuKeyDown}
-          className="absolute right-0 z-50 mt-1 min-w-36 rounded-lg border border-border bg-bg p-1 shadow-lg"
+          style={position}
+          className="z-50 min-w-36 rounded-lg border border-border bg-bg p-1 shadow-lg"
         >
           {items.map((item) => (
             <button
