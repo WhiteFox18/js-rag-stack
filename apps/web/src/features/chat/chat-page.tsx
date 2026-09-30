@@ -12,6 +12,7 @@ import {
   mergeMessages,
   shouldShowNavigator,
 } from './chat.helpers';
+import type { ComposerInsertion } from './chat.types';
 import { Composer } from './composer';
 import { MessageList } from './message-list';
 import { ModelSelector } from './model-selector';
@@ -24,6 +25,13 @@ interface ModelOverride {
   model: string;
 }
 
+const EXAMPLE_PROMPTS = [
+  'Explain how Server-Sent Events work in simple terms',
+  'Write a TypeScript function that debounces another function',
+  'Compare PostgreSQL and SQLite for a small web app',
+  'Suggest three ideas for a weekend side project',
+];
+
 export function ChatPage() {
   const { chatId } = useParams();
   const navigate = useNavigate();
@@ -31,6 +39,7 @@ export function ChatPage() {
   const { pending, send, cancel, dismissError } = useChatStream();
   const [override, setOverride] = useState<ModelOverride | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [insertion, setInsertion] = useState<ComposerInsertion | null>(null);
   const scope = chatId ?? 'new';
 
   const models = useQuery({ queryKey: ['models'], queryFn: api.getModels });
@@ -98,8 +107,9 @@ export function ChatPage() {
     sendError ??
     (pending?.status === 'error' ? pending.errorMessage : null) ??
     (chat.isError ? toErrorMessage(chat.error) : null);
-  const showEmpty =
-    !chatId && !isBusy && messages.length === 0 && !chat.isPending;
+  // The detail query is disabled without a chatId, so TanStack Query reports it
+  // as pending forever; do not gate the empty state on it.
+  const showEmpty = !chatId && !isBusy && messages.length === 0;
 
   return (
     <main className="flex min-h-0 flex-1 flex-col">
@@ -136,6 +146,24 @@ export function ChatPage() {
                     ? 'No allowed models are installed in Ollama yet.'
                     : 'Ask anything. Your conversation streams from a local model.'}
               </p>
+              <ul className="mt-8 grid w-full max-w-2xl gap-2 sm:grid-cols-2">
+                {EXAMPLE_PROMPTS.map((example) => (
+                  <li key={example}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setInsertion((current) => ({
+                          id: (current?.id ?? 0) + 1,
+                          text: example,
+                        }))
+                      }
+                      className="h-full w-full rounded-xl border border-border px-4 py-3 text-left text-sm text-fg-muted hover:bg-surface hover:text-fg"
+                    >
+                      {example}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : (
             <MessageList
@@ -173,6 +201,7 @@ export function ChatPage() {
             draftKey={`draft:${scope}`}
             isBusy={isBusy}
             disabled={!activeModel}
+            insertion={insertion}
             onSend={handleSend}
             onStop={cancel}
           />

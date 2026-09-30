@@ -179,6 +179,26 @@ describe('ChatPage', () => {
     expect(await screen.findByText('Earlier message')).toBeInTheDocument();
     expect(api.getChat).toHaveBeenLastCalledWith('c1', { cursor: 'cursor-1' });
   });
+
+  it('fills the composer from an example prompt without sending', async () => {
+    renderPage();
+    const user = userEvent.setup();
+    await screen.findByRole('option', { name: /qwen2.5:1.5b/ });
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Explain how Server-Sent Events work in simple terms',
+      }),
+    );
+
+    const input = screen.getByLabelText('Message');
+    expect(input).toHaveValue(
+      'Explain how Server-Sent Events work in simple terms',
+    );
+    expect(input).toHaveFocus();
+    expect(api.createChat).not.toHaveBeenCalled();
+    expect(api.streamMessage).not.toHaveBeenCalled();
+  });
 });
 
 function chatWithPrompts(count: number) {
