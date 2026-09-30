@@ -9,6 +9,8 @@ export type StreamEventName =
   | 'stream.started'
   | 'message.delta'
   | 'message.completed'
+  | 'context.summarizing'
+  | 'context.updated'
   | 'stream.error'
   | 'stream.cancelled'
   | 'heartbeat';
@@ -86,6 +88,8 @@ export type ChatStreamEvent =
   | { event: 'stream.started'; data: StreamStartedEvent }
   | { event: 'message.delta'; data: MessageDeltaEvent }
   | { event: 'message.completed'; data: MessageCompletedEvent }
+  | { event: 'context.summarizing'; data: Record<string, never> }
+  | { event: 'context.updated'; data: ChatContext }
   | { event: 'stream.error'; data: StreamErrorEvent }
   | { event: 'stream.cancelled'; data: StreamCancelledEvent }
   | { event: 'heartbeat'; data: Record<string, never> };

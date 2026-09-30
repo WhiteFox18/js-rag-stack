@@ -63,8 +63,13 @@ export function applyStreamEvent({
     case 'message.delta':
       return {
         ...pending,
+        summarizing: false,
         assistantText: pending.assistantText + event.data.delta,
       };
+    case 'context.summarizing':
+      return { ...pending, summarizing: true };
+    case 'context.updated':
+      return { ...pending, context: event.data };
     case 'message.completed':
       return { ...pending, status: 'done' };
     case 'stream.error':

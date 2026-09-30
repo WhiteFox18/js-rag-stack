@@ -24,6 +24,8 @@ const streaming: PendingStream = {
   model: 'm',
   assistantText: 'Partial ans',
   errorMessage: null,
+  summarizing: false,
+  context: null,
 };
 
 describe('MessageList', () => {
@@ -103,6 +105,19 @@ describe('MessageList', () => {
     expect(
       screen.getByRole('status', { name: 'Assistant is thinking' }),
     ).toBeInTheDocument();
+  });
+
+  it('shows a summarizing status instead of the thinking dots', () => {
+    render(
+      <Harness
+        {...base}
+        pending={{ ...streaming, assistantText: '', summarizing: true }}
+        messages={[]}
+      />,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Summarizing earlier messages…',
+    );
   });
 
   it('marks user prompts as navigation targets, including the pending one', () => {

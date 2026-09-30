@@ -25,6 +25,8 @@ export function useChatStream() {
         model: null,
         assistantText: '',
         errorMessage: null,
+        summarizing: false,
+        context: null,
       });
 
       try {

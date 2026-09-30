@@ -76,9 +76,18 @@ function ThinkingIndicator() {
   );
 }
 
+function SummarizingIndicator() {
+  return (
+    <p role="status" className="py-2 text-sm text-fg-subtle">
+      Summarizing earlier messages…
+    </p>
+  );
+}
+
 function AssistantMessage({
   content,
   streaming,
+  summarizing,
   status,
   details,
 }: AssistantMessageProps) {
@@ -94,7 +103,11 @@ function AssistantMessage({
         {content ? (
           <LazyMarkdown content={content} streaming={streaming} />
         ) : streaming ? (
-          <ThinkingIndicator />
+          summarizing ? (
+            <SummarizingIndicator />
+          ) : (
+            <ThinkingIndicator />
+          )
         ) : null}
         {chip && !streaming ? (
           <span
@@ -197,6 +210,7 @@ export function MessageList({
                 <AssistantMessage
                   content={pending.assistantText}
                   streaming
+                  summarizing={pending.summarizing}
                   status={null}
                   details={[]}
                 />

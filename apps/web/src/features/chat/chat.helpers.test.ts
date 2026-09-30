@@ -21,6 +21,8 @@ const pending: PendingStream = {
   model: null,
   assistantText: '',
   errorMessage: null,
+  summarizing: false,
+  context: null,
 };
 
 describe('groupChatsByRecency', () => {
@@ -78,6 +80,36 @@ describe('applyStreamEvent', () => {
       assistantText: 'Hello',
       status: 'streaming',
     });
+  });
+
+  it('tracks summarization and context updates from the stream', () => {
+    const summarizing = applyStreamEvent({
+      pending,
+      event: { event: 'context.summarizing', data: {} },
+    });
+    expect(summarizing.summarizing).toBe(true);
+
+    const streaming = applyStreamEvent({
+      pending: summarizing,
+      event: {
+        event: 'message.delta',
+        data: { assistantMessageId: 'a', delta: 'Hi' },
+      },
+    });
+    expect(streaming.summarizing).toBe(false);
+
+    const context = {
+      usedTokens: 900,
+      maxTokens: 8192,
+      summary: 'S',
+      summarizedThroughMessageId: 'm4',
+    };
+    expect(
+      applyStreamEvent({
+        pending: streaming,
+        event: { event: 'context.updated', data: context },
+      }).context,
+    ).toEqual(context);
   });
 
   it('records stream errors', () => {

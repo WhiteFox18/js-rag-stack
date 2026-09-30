@@ -1,5 +1,6 @@
 import type { AuthUser, ReadinessResponse } from '@js-rag-stack/api-client';
 import type {
+  ChatContext,
   ChatMessage,
   ChatStreamEvent,
   ChatSummary,
@@ -15,6 +16,8 @@ export interface PendingStream {
   model: string | null;
   assistantText: string;
   errorMessage: string | null;
+  summarizing: boolean;
+  context: ChatContext | null;
 }
 
 export interface SendStreamParams {
@@ -137,6 +140,7 @@ export interface UserMessageProps {
 export interface AssistantMessageProps {
   content: string;
   streaming: boolean;
+  summarizing?: boolean;
   status: ChatMessage['status'] | null;
   details: string[];
 }
