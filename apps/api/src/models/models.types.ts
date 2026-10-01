@@ -1,3 +1,6 @@
+import type { UpdateModelInput } from '@js-rag-stack/contracts';
+import type { Model } from '../generated/prisma/client';
+
 export interface CreateModelRecord {
   name: string;
   max_context: number;
@@ -17,4 +20,14 @@ export interface SeedDefaultModelParams {
 export interface UpdateModelRecordParams {
   id: string;
   data: UpdateModelRecord;
+}
+
+export interface UpdateModelParams {
+  id: string;
+  input: UpdateModelInput;
+}
+
+export interface ToAdminModelParams {
+  model: Model;
+  installed: Set<string> | null;
 }

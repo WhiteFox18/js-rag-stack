@@ -94,3 +94,30 @@ export type ChatStreamEvent =
   | { event: 'stream.error'; data: StreamErrorEvent }
   | { event: 'stream.cancelled'; data: StreamCancelledEvent }
   | { event: 'heartbeat'; data: Record<string, never> };
+
+export interface AdminModel {
+  id: string;
+  name: string;
+  maxContext: number;
+  isAvailable: boolean;
+  isDefault: boolean;
+  installed: boolean | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminModelsResponse {
+  models: AdminModel[];
+}
+
+export interface CreateModelInput {
+  name: string;
+  maxContext: number;
+  isAvailable?: boolean;
+}
+
+export interface UpdateModelInput {
+  maxContext?: number;
+  isAvailable?: boolean;
+  isDefault?: boolean;
+}
