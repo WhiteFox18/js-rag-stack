@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Route, Routes } from 'react-router-dom';
+import { Link, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeTotals, makeUser } from '../../test/fixtures';
 import { renderWithProviders } from '../../test/render';
@@ -22,7 +22,15 @@ function renderAt(route: string) {
     route,
     ui: (
       <Routes>
-        <Route path="/users" element={<UsersPage />} />
+        <Route
+          path="/users"
+          element={
+            <>
+              <Link to="/users">Users nav</Link>
+              <UsersPage />
+            </>
+          }
+        />
         <Route path="/users/:userId" element={<UserDetailPage />} />
       </Routes>
     ),
@@ -80,6 +88,11 @@ describe('users pages', () => {
     expect(api.listUsers).not.toHaveBeenCalledWith(
       expect.objectContaining({ search: 'a' }),
     );
+    await waitFor(() =>
+      expect(api.listUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ search: 'ada' }),
+      ),
+    );
     await userEvent.selectOptions(
       screen.getByLabelText('Sort by'),
       'totalTokens',
@@ -93,6 +106,26 @@ describe('users pages', () => {
         from: new Date(2026, 8, 1).toISOString(),
         to: undefined,
       }),
+    );
+  });
+
+  it('resyncs the search input when the URL search param changes externally', async () => {
+    renderAt('/users?search=ada');
+    const box = screen.getByRole('searchbox', { name: 'Search users' });
+    expect(box).toHaveValue('ada');
+    await screen.findByRole('table', { name: 'Users' });
+    await userEvent.click(screen.getByRole('link', { name: 'Users nav' }));
+    await waitFor(() => expect(box).toHaveValue(''));
+    await waitFor(() =>
+      expect(api.listUsers).toHaveBeenLastCalledWith(
+        expect.objectContaining({ search: undefined }),
+      ),
+    );
+    // The old local value is not re-applied after the debounce window.
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    expect(box).toHaveValue('');
+    expect(api.listUsers).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: undefined }),
     );
   });
 

@@ -1,6 +1,6 @@
 import type { AdminUserSort } from '@js-rag-stack/contracts';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Pagination } from '../../components/pagination';
 import { RangeFilter } from '../../components/range-filter';
@@ -22,9 +22,21 @@ export function UsersPage() {
     delayMs: SEARCH_DEBOUNCE_MS,
   });
   const { setParam } = list;
+  // The search value the URL is known to hold (pushed by us or seen from outside).
+  const knownUrlSearch = useRef(search);
   useEffect(() => {
-    if (committedSearch !== search) setParam('search', committedSearch);
-  }, [committedSearch, search, setParam]);
+    if (search !== knownUrlSearch.current) {
+      // External navigation changed the param: the URL wins over local input.
+      knownUrlSearch.current = search;
+      setSearchText(search);
+    }
+  }, [search]);
+  useEffect(() => {
+    if (committedSearch !== knownUrlSearch.current) {
+      knownUrlSearch.current = committedSearch;
+      setParam('search', committedSearch);
+    }
+  }, [committedSearch, setParam]);
   const sort = (list.param('sort') || 'lastActivity') as AdminUserSort;
   const query = {
     page: list.page,
