@@ -1,3 +1,4 @@
+import { parseCreateAdminArgs } from '../src/cli/create-admin.helpers';
 import { isAdminPath } from '../src/common/utils/admin-path';
 
 describe('isAdminPath', () => {
@@ -13,5 +14,19 @@ describe('isAdminPath', () => {
     [undefined, false],
   ])('%s → %s', (url, expected) => {
     expect(isAdminPath(url)).toBe(expected);
+  });
+});
+
+describe('parseCreateAdminArgs', () => {
+  it('parses email and optional name', () => {
+    expect(parseCreateAdminArgs(['--email', 'a@b.co', '--name', 'Ops'])).toEqual({
+      email: 'a@b.co',
+      name: 'Ops',
+    });
+    expect(parseCreateAdminArgs(['--email=a@b.co'])).toEqual({ email: 'a@b.co', name: null });
+  });
+
+  it('requires --email', () => {
+    expect(() => parseCreateAdminArgs([])).toThrow('Usage: admin:create --email <email> [--name <name>]');
   });
 });

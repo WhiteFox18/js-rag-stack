@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "pnpm prisma:generate && nest build",
+    "admin:create": "nest build && node dist/cli/create-admin.js",
     "dev": "nest start --watch",
     "lint": "eslint src test",
     "openapi:generate": "pnpm build && node dist/generate-openapi.js",
