@@ -139,6 +139,61 @@ describe('users pages', () => {
     ).toHaveTextContent('summary');
   });
 
+  it('keeps the heading and range filter mounted while the range changes', async () => {
+    api.getUser.mockResolvedValue({
+      user: {
+        id: 'u1',
+        email: 'ada@example.com',
+        displayName: 'Ada',
+        createdAt: '2026-09-01T10:00:00.000Z',
+      },
+      usage: makeTotals(),
+      breakdown: [],
+    });
+    api.getUserUsage.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 25,
+      total: 0,
+    });
+    renderAt('/users/u1');
+    await screen.findByRole('heading', { name: 'ada@example.com' });
+    const from = screen.getByLabelText('From');
+    await userEvent.type(from, '2026-09-01');
+    await waitFor(() =>
+      expect(api.getUser).toHaveBeenLastCalledWith('u1', {
+        from: '2026-09-01T00:00:00.000Z',
+        to: undefined,
+      }),
+    );
+    expect(
+      screen.getByRole('heading', { name: 'ada@example.com' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('From')).toBe(from);
+    expect(from).toHaveValue('2026-09-01');
+  });
+
+  it('shows an alert when the usage log fails to load', async () => {
+    const { ApiClientError } = await import('@js-rag-stack/api-client');
+    api.getUser.mockResolvedValue({
+      user: {
+        id: 'u1',
+        email: 'ada@example.com',
+        displayName: 'Ada',
+        createdAt: '2026-09-01T10:00:00.000Z',
+      },
+      usage: makeTotals(),
+      breakdown: [],
+    });
+    api.getUserUsage.mockRejectedValue(
+      new ApiClientError(500, 'INTERNAL', 'Usage log failed.'),
+    );
+    renderAt('/users/u1');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Usage log failed.',
+    );
+  });
+
   it('shows not found for unknown users', async () => {
     const { ApiClientError } = await import('@js-rag-stack/api-client');
     api.getUser.mockRejectedValue(

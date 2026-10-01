@@ -12,6 +12,7 @@ export function AnonymousDetailPage() {
   const detail = useQuery({
     queryKey: ['anonymous', sessionId, list.rangeQuery],
     queryFn: () => api.getAnonymousSession(sessionId, list.rangeQuery),
+    placeholderData: keepPreviousData,
   });
   const rows = useQuery({
     queryKey: ['anonymous', sessionId, 'usage', list.page, list.rangeQuery],
@@ -63,6 +64,7 @@ export function AnonymousDetailPage() {
             usage={detail.data.usage}
             breakdown={detail.data.breakdown}
             rows={rows.data}
+            rowsError={rows.isError ? rows.error : undefined}
             onPage={list.setPage}
           />
         </>
