@@ -59,8 +59,8 @@ failed generations (Ollama reports no token counts for them).
 
 - `CREATE UNIQUE INDEX model_single_default ON model (is_default) WHERE is_default;`
 - `CHECK (NOT is_default OR is_available)` — `model_default_is_available_check`.
-- Migration sets `is_default = true` on the `qwen2.5:1.5b` row if it exists.
-  At bootstrap, if no row is default, the API marks the `OLLAMA_DEFAULT_MODEL`
+- The migration does not set a default. At bootstrap, if no row is default,
+  the API seeds the default from `OLLAMA_DEFAULT_MODEL`: it marks that
   row default (creating it with `max_context = 8192` if missing). From then on
   the env var is only a seed; the DB is the source of truth.
 - Models are never deleted (chats reference them with `RESTRICT`).
@@ -177,8 +177,9 @@ removed.
 outputTokens })` maps the principal to `user_id` or `anonymous_session_id`.
 - `ChatStreamService`: after `completeGeneration`, record `kind=CHAT` with the
   final chunk's `promptTokens` / `completionTokens`.
-- `ContextWindowService.summarize`: after a successful (non-degenerate)
-  `complete()`, record `kind=SUMMARY`. `BuildPromptParams` gains `principal`.
+- `ContextWindowService.summarize`: after each `complete()` call
+  resolves (tokens are spent even when the summary is later rejected as
+  degenerate), record `kind=SUMMARY`. `BuildPromptParams` gains `principal`.
 - Recording failures log a warning; they never fail the stream.
 - `AuthRepository` sign-up/sign-in transactions call
   `UsageTransferService.reassignAnonymousUsage(tx, anonymousSessionId, userId)`

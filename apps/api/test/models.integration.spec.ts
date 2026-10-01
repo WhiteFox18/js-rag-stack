@@ -11,6 +11,7 @@ import { ModelDefaultSeeder } from '../src/models/model-default.seeder';
 import { ModelsRepository } from '../src/models/models.repository';
 import { OllamaError } from '../src/ollama/ollama.errors';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { ensureDefaultModel } from './models.test-helpers';
 
 describe('model catalog', () => {
   let prisma: PrismaService;
@@ -50,6 +51,7 @@ describe('model catalog', () => {
     prisma = new PrismaService(config);
     await prisma.onModuleInit();
     repository = new ModelsRepository(prisma);
+    await ensureDefaultModel(prisma);
   });
 
   afterAll(async () => {

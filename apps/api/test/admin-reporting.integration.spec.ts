@@ -12,6 +12,7 @@ import { AdminUsersService } from '../src/admin/users/admin-users.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { UsageReportingService } from '../src/usage/usage-reporting.service';
 import { UsageRepository } from '../src/usage/usage.repository';
+import { ensureDefaultModel } from './models.test-helpers';
 
 describe('usage reporting', () => {
   let prisma: PrismaService;
@@ -31,6 +32,7 @@ describe('usage reporting', () => {
     );
     prisma = new PrismaService(config);
     await prisma.onModuleInit();
+    await ensureDefaultModel(prisma);
     reporting = new UsageReportingService(new UsageRepository(prisma));
     model_id = (
       await prisma.model.findUniqueOrThrow({ where: { name: 'qwen2.5:1.5b' } })

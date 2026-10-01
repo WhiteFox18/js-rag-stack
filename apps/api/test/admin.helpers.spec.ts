@@ -5,6 +5,7 @@ import {
   toUsageRange,
 } from '../src/admin/common/admin-query.helpers';
 import { parseCreateAdminArgs } from '../src/cli/create-admin.helpers';
+import { resolveCorsOrigin } from '../src/common/security/cors.helpers';
 import { isAdminPath } from '../src/common/utils/admin-path';
 
 describe('isAdminPath', () => {
@@ -17,9 +18,27 @@ describe('isAdminPath', () => {
     ['/api/v1/ADMINISTRATOR', false],
     ['/api/v1/administrator', false],
     ['/api/v1/chats', false],
+    ['http://h/api/v1/admin/users', true],
+    ['http://h/api/v1/chats?next=/api/v1/admin', false],
     [undefined, false],
   ])('%s → %s', (url, expected) => {
     expect(isAdminPath(url)).toBe(expected);
+  });
+});
+
+describe('resolveCorsOrigin', () => {
+  const origins = {
+    webOrigin: 'http://web.test',
+    adminOrigin: 'http://admin.test',
+  };
+
+  it.each([
+    ['/api/v1/admin/users', 'http://admin.test'],
+    ['/API/v1/Admin/users?x=1', 'http://admin.test'],
+    ['/api/v1/chats', 'http://web.test'],
+    [undefined, 'http://web.test'],
+  ])('%s → %s', (url, expected) => {
+    expect(resolveCorsOrigin({ url, ...origins })).toBe(expected);
   });
 });
 

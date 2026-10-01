@@ -190,6 +190,8 @@ export class ContextWindowService {
         maxTokens: budget.summaryMaxTokens,
         signal,
       });
+      // Recorded before the degenerate check: the tokens were spent even if the
+      // summary is rejected below.
       await this.usage.record({
         principal,
         chatId,

@@ -11,8 +11,28 @@ import type {
 export class UsageRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  // For chat-scoped rows the chat is the source of truth for ownership: the
+  // principal may have been transferred or deleted mid-stream. The principal's
+  // columns are only the fallback when there is no chat (or it is gone).
   async create(data: CreateUsageRecord): Promise<void> {
-    await this.prisma.usageLog.create({ data, select: { id: true } });
+    await this.prisma.$transaction(async (transaction) => {
+      const chat = data.chat_id
+        ? await transaction.chat.findUnique({
+            where: { id: data.chat_id },
+            select: { user_id: true, anonymous_session_id: true },
+          })
+        : null;
+      await transaction.usageLog.create({
+        data: chat
+          ? {
+              ...data,
+              user_id: chat.user_id,
+              anonymous_session_id: chat.anonymous_session_id,
+            }
+          : { ...data, chat_id: null },
+        select: { id: true },
+      });
+    });
   }
 
   async reassignAnonymous({

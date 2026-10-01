@@ -22,6 +22,10 @@ export interface UpdateModelRecordParams {
   data: UpdateModelRecord;
 }
 
+export interface UpdateModelWithDefaultParams extends UpdateModelRecordParams {
+  makeDefault: boolean;
+}
+
 export interface UpdateModelParams {
   id: string;
   input: UpdateModelInput;

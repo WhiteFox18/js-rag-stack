@@ -1,5 +1,5 @@
 import { Prisma } from '../generated/prisma/client';
-import type { UsageRange } from './usage.types';
+import type { UsageExistsParams, UsageRange } from './usage.types';
 
 // Admin list repositories join this fragment because sorting/paging across all
 // owners by aggregated usage can't go through per-owner service calls.
@@ -7,6 +7,14 @@ export function usageRangeSql(range: UsageRange): Prisma.Sql {
   return Prisma.sql`${range.from ? Prisma.sql` AND created_at >= ${range.from}` : Prisma.empty}${
     range.to ? Prisma.sql` AND created_at < ${range.to}` : Prisma.empty
   }`;
+}
+
+// Correlated EXISTS for admin list filters; keeps usage_log SQL in this module.
+export function usageExistsSql({
+  ownerColumn,
+  alias,
+}: UsageExistsParams): Prisma.Sql {
+  return Prisma.sql`EXISTS (SELECT 1 FROM "usage_log" l WHERE l.${Prisma.raw(`"${ownerColumn}"`)} = ${Prisma.raw(alias)}.id)`;
 }
 
 export function usageAggregateSql(

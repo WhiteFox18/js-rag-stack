@@ -7,7 +7,7 @@ import type { AdminModel, CreateModelInput } from '@js-rag-stack/contracts';
 import { isUniqueViolation } from '../common/utils/error';
 import type { Model } from '../generated/prisma/client';
 import { OllamaService } from '../ollama/ollama.service';
-import { toAdminModel } from './models.helpers';
+import { isModelConflict, toAdminModel } from './models.helpers';
 import { ModelsRepository } from './models.repository';
 import type { UpdateModelParams } from './models.types';
 
@@ -48,20 +48,24 @@ export class ModelAdministrationService {
 
     this.assertTransition(model, input);
 
-    let updated = model;
-    if (input.maxContext !== undefined || input.isAvailable !== undefined) {
-      updated = await this.models.update({
+    try {
+      const updated = await this.models.updateWithDefault({
         id,
         data: {
           max_context: input.maxContext,
           is_available: input.isAvailable,
         },
+        makeDefault: input.isDefault === true && !model.is_default,
       });
+      return await this.present(updated);
+    } catch (error) {
+      if (isModelConflict(error)) {
+        throw new ConflictException(
+          'The default model changed concurrently. Reload and try again.',
+        );
+      }
+      throw error;
     }
-    if (input.isDefault === true && !model.is_default) {
-      updated = await this.models.setDefault(id);
-    }
-    return this.present(updated);
   }
 
   private assertTransition(
