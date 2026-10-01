@@ -60,12 +60,12 @@ model User {
 }
 
 model AnonymousSession {
-  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  token_hash   String   @unique @db.Char(64)
-  expires_at   DateTime @db.Timestamptz(3)
-  created_at   DateTime @default(now()) @db.Timestamptz(3)
-  last_seen_at DateTime @default(now()) @db.Timestamptz(3)
-  chats        Chat[]   @relation("anonymous_session_chats")
+  id           String     @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  token_hash   String     @unique @db.Char(64)
+  expires_at   DateTime   @db.Timestamptz(3)
+  created_at   DateTime   @default(now()) @db.Timestamptz(3)
+  last_seen_at DateTime   @default(now()) @db.Timestamptz(3)
+  chats        Chat[]     @relation("anonymous_session_chats")
   usage_logs   UsageLog[] @relation("anonymous_session_usage_logs")
 
   @@index([expires_at])
