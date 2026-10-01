@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiClientError } from '@js-rag-stack/api-client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -86,6 +86,39 @@ describe('ModelsPage', () => {
       ([, input]) => 'maxContext' in input,
     );
     expect(contextCalls).toHaveLength(1);
+  });
+
+  it('does not send an empty or out-of-range max context and restores the value', async () => {
+    renderWithProviders({ ui: <ModelsPage /> });
+    await screen.findByRole('table', { name: 'Models' });
+    const context = within(row('llama3.2')).getByRole('spinbutton', {
+      name: 'Max context',
+    });
+    await userEvent.clear(context);
+    await userEvent.tab();
+    expect(api.updateModel).not.toHaveBeenCalled();
+    expect(context).toHaveValue(llama.maxContext);
+    await userEvent.clear(context);
+    await userEvent.type(context, '100');
+    await userEvent.tab();
+    expect(api.updateModel).not.toHaveBeenCalled();
+    expect(context).toHaveValue(llama.maxContext);
+  });
+
+  it('restores the input to the server value after a rejected update', async () => {
+    api.updateModel.mockRejectedValue(
+      new ApiClientError(400, 'BAD_REQUEST', 'Rejected.'),
+    );
+    renderWithProviders({ ui: <ModelsPage /> });
+    await screen.findByRole('table', { name: 'Models' });
+    const context = within(row('llama3.2')).getByRole('spinbutton', {
+      name: 'Max context',
+    });
+    await userEvent.clear(context);
+    await userEvent.type(context, '4096');
+    await userEvent.tab();
+    expect(api.updateModel).toHaveBeenCalledWith('m2', { maxContext: 4096 });
+    await waitFor(() => expect(context).toHaveValue(llama.maxContext));
   });
 
   it('shows server conflicts inline', async () => {

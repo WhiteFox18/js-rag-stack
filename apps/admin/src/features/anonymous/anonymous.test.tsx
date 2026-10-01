@@ -72,7 +72,7 @@ describe('anonymous pages', () => {
       expect(api.listAnonymousSessions).toHaveBeenLastCalledWith({
         page: 1,
         sort: 'totalTokens',
-        from: '2026-09-01T00:00:00.000Z',
+        from: new Date(2026, 8, 1).toISOString(),
         to: undefined,
       }),
     );

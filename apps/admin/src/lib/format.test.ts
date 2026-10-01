@@ -20,7 +20,12 @@ describe('format helpers', () => {
 
   it('converts date inputs to an inclusive start and exclusive end', () => {
     expect(toIsoStart('')).toBeUndefined();
-    expect(toIsoStart('2026-09-01')).toBe('2026-09-01T00:00:00.000Z');
-    expect(toIsoEndExclusive('2026-09-30')).toBe('2026-10-01T00:00:00.000Z');
+    expect(toIsoStart('2026-09-01')).toBe(new Date(2026, 8, 1).toISOString());
+    expect(toIsoEndExclusive('2026-09-30')).toBe(
+      new Date(2026, 9, 1).toISOString(),
+    );
+    expect(toIsoEndExclusive('2026-12-31')).toBe(
+      new Date(2027, 0, 1).toISOString(),
+    );
   });
 });

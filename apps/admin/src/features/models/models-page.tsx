@@ -50,7 +50,9 @@ export function ModelsPage() {
                   key={model.id}
                   model={model}
                   busy={update.isPending}
-                  onUpdate={(input) => update.mutate({ id: model.id, input })}
+                  onUpdate={({ input, onError }) =>
+                    update.mutate({ id: model.id, input }, { onError })
+                  }
                 />
               ))}
             </tbody>

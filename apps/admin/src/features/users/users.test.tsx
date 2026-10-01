@@ -76,6 +76,10 @@ describe('users pages', () => {
       screen.getByRole('searchbox', { name: 'Search users' }),
       'ada',
     );
+    // Typing is debounced: no request carries a partial search term.
+    expect(api.listUsers).not.toHaveBeenCalledWith(
+      expect.objectContaining({ search: 'a' }),
+    );
     await userEvent.selectOptions(
       screen.getByLabelText('Sort by'),
       'totalTokens',
@@ -86,7 +90,7 @@ describe('users pages', () => {
         page: 1,
         sort: 'totalTokens',
         search: 'ada',
-        from: '2026-09-01T00:00:00.000Z',
+        from: new Date(2026, 8, 1).toISOString(),
         to: undefined,
       }),
     );
@@ -162,7 +166,7 @@ describe('users pages', () => {
     await userEvent.type(from, '2026-09-01');
     await waitFor(() =>
       expect(api.getUser).toHaveBeenLastCalledWith('u1', {
-        from: '2026-09-01T00:00:00.000Z',
+        from: new Date(2026, 8, 1).toISOString(),
         to: undefined,
       }),
     );
