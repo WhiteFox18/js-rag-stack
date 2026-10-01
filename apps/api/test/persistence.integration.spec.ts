@@ -418,17 +418,20 @@ describe('persistence foundation', () => {
     });
     try {
       await expect(
+        prisma.model.findUniqueOrThrow({ where: { id: model_id } }),
+      ).resolves.toMatchObject({ is_default: true, is_available: true });
+      await expect(
         prisma.model.update({
           where: { id: extra.id },
           data: { is_default: true },
         }),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ code: 'P2002' });
       await expect(
         prisma.model.update({
           where: { id: model_id },
           data: { is_available: false },
         }),
-      ).rejects.toThrow();
+      ).rejects.toThrow(/model_default_is_available_check/);
     } finally {
       await prisma.model.delete({ where: { id: extra.id } });
     }
@@ -474,7 +477,7 @@ describe('persistence foundation', () => {
           output_tokens: 0,
         },
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/usage_log_tokens_check/);
   });
 
   it('reports PostgreSQL and Redis readiness', async () => {
