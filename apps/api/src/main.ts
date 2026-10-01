@@ -1,10 +1,13 @@
 import { ValidationPipe } from '@nestjs/common';
+import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
+import type { Request } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { resolveCorsOrigin } from './common/security/cors.helpers';
 import { swaggerRequestInterceptor } from './common/swagger/swagger.helpers';
 import type { AppEnvironment } from './config/environment.schema';
 import { ApiExceptionFilter } from './common/filters/api-exception.filter';
@@ -25,13 +28,23 @@ async function bootstrap(): Promise<void> {
   );
   app.useGlobalFilters(new ApiExceptionFilter());
   app.setGlobalPrefix('api/v1');
-  app.enableCors({
-    origin: [
-      config.get('WEB_ORIGIN', { infer: true }),
-      config.get('ADMIN_ORIGIN', { infer: true }),
-    ],
-    credentials: true,
-  });
+  const webOrigin = config.get('WEB_ORIGIN', { infer: true });
+  const adminOrigin = config.get('ADMIN_ORIGIN', { infer: true });
+  app.enableCors(
+    (
+      request: Request,
+      callback: (error: Error | null, options: CorsOptions) => void,
+    ) => {
+      callback(null, {
+        origin: resolveCorsOrigin({
+          url: request.originalUrl,
+          webOrigin,
+          adminOrigin,
+        }),
+        credentials: true,
+      });
+    },
+  );
 
   if (config.get('NODE_ENV', { infer: true }) === 'development') {
     const document = createOpenApiDocument(app);

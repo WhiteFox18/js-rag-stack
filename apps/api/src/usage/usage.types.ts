@@ -57,3 +57,8 @@ export interface FindUsageRowsParams {
   skip: number;
   take: number;
 }
+
+export interface UsageExistsParams {
+  ownerColumn: 'user_id' | 'anonymous_session_id';
+  alias: string;
+}

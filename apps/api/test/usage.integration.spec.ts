@@ -20,6 +20,7 @@ import { RedisService } from '../src/redis/redis.service';
 import { UsageRecorderService } from '../src/usage/usage-recorder.service';
 import { UsageRepository } from '../src/usage/usage.repository';
 import { UsageTransferService } from '../src/usage/usage-transfer.service';
+import { ensureDefaultModel } from './models.test-helpers';
 
 describe('usage recording', () => {
   let prisma: PrismaService;
@@ -63,6 +64,7 @@ describe('usage recording', () => {
     );
     await prisma.onModuleInit();
     await redis.onModuleInit();
+    await ensureDefaultModel(prisma);
     model_id = (
       await prisma.model.findUniqueOrThrow({ where: { name: 'qwen2.5:1.5b' } })
     ).id;
@@ -172,5 +174,38 @@ describe('usage recording', () => {
     expect(await prisma.usageLog.count({ where: { user_id: user.id } })).toBe(
       2,
     );
+  });
+
+  it('attributes chat usage to the chat owner, not the request principal', async () => {
+    const owner = await prisma.user.create({
+      data: {
+        email: `usage-${randomBytes(6).toString('hex')}@example.com`,
+        password_hash: 'x',
+      },
+    });
+    userIds.push(owner.id);
+    const chat = await prisma.chat.create({
+      data: { user_id: owner.id, title: 't', selected_model_id: model_id },
+    });
+    const stale = await anonymousSessions.create(response());
+    await recorder.record({
+      principal: stale,
+      chatId: chat.id,
+      modelId: model_id,
+      kind: 'CHAT',
+      inputTokens: 5,
+      outputTokens: 5,
+    });
+    const rows = await prisma.usageLog.findMany({
+      where: { chat_id: chat.id },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      user_id: owner.id,
+      anonymous_session_id: null,
+    });
+    await prisma.anonymousSession.delete({
+      where: { id: stale.anonymous_session_id },
+    });
   });
 });

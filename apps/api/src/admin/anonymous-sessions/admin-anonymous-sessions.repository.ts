@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { usageAggregateSql } from '../../usage/usage-aggregate.sql';
+import {
+  usageAggregateSql,
+  usageExistsSql,
+} from '../../usage/usage-aggregate.sql';
 import type {
   AnonymousUsageRow,
   ListAnonymousParams,
@@ -15,7 +18,7 @@ const SORTS = {
 
 // Hide visitor sessions that never chatted nor used a model.
 const HAS_ACTIVITY = Prisma.sql`
-  WHERE EXISTS (SELECT 1 FROM "usage_log" l WHERE l.anonymous_session_id = a.id)
+  WHERE ${usageExistsSql({ ownerColumn: 'anonymous_session_id', alias: 'a' })}
      OR EXISTS (SELECT 1 FROM "chat" c WHERE c.anonymous_session_id = a.id)`;
 
 @Injectable()

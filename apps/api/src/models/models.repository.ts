@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import type { Model } from '../generated/prisma/client';
+import type { Model, Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type {
   CreateModelRecord,
   SeedDefaultModelParams,
   UpdateModelRecordParams,
+  UpdateModelWithDefaultParams,
 } from './models.types';
 
 @Injectable()
@@ -38,15 +39,37 @@ export class ModelsRepository {
   // Clear-then-set in one transaction; the partial unique index rejects a
   // concurrent second default, so the loser's transaction fails cleanly.
   setDefault(id: string): Promise<Model> {
+    return this.prisma.$transaction((transaction) =>
+      this.applyDefault({ transaction, id }),
+    );
+  }
+
+  // Field edit and default switch commit together or not at all.
+  updateWithDefault({
+    id,
+    data,
+    makeDefault,
+  }: UpdateModelWithDefaultParams): Promise<Model> {
     return this.prisma.$transaction(async (transaction) => {
-      await transaction.model.updateMany({
-        where: { is_default: true, NOT: { id } },
-        data: { is_default: false },
-      });
-      return transaction.model.update({
-        where: { id },
-        data: { is_default: true, is_available: true },
-      });
+      const updated = await transaction.model.update({ where: { id }, data });
+      return makeDefault ? this.applyDefault({ transaction, id }) : updated;
+    });
+  }
+
+  private async applyDefault({
+    transaction,
+    id,
+  }: {
+    transaction: Prisma.TransactionClient;
+    id: string;
+  }): Promise<Model> {
+    await transaction.model.updateMany({
+      where: { is_default: true, NOT: { id } },
+      data: { is_default: false },
+    });
+    return transaction.model.update({
+      where: { id },
+      data: { is_default: true, is_available: true },
     });
   }
 

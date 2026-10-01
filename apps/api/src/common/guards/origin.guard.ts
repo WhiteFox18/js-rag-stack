@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
-import { isAdminPath } from '../utils/admin-path';
+import { resolveCorsOrigin } from '../security/cors.helpers';
 import type { AppEnvironment } from '../../config/environment.schema';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -31,9 +31,11 @@ export class OriginGuard implements CanActivate {
       return true;
     }
 
-    const expectedOrigin = isAdminPath(request.originalUrl)
-      ? this.adminOrigin
-      : this.allowedOrigin;
+    const expectedOrigin = resolveCorsOrigin({
+      url: request.originalUrl,
+      webOrigin: this.allowedOrigin,
+      adminOrigin: this.adminOrigin,
+    });
     const origin = request.get('origin');
 
     if (origin === expectedOrigin) {

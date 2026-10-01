@@ -20,6 +20,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import { RedisService } from '../src/redis/redis.service';
 
 const anyString = (): string => expect.any(String) as string;
+import { ensureDefaultModel } from './models.test-helpers';
 
 describe('persistence foundation', () => {
   let prisma: PrismaService;
@@ -61,6 +62,7 @@ describe('persistence foundation', () => {
 
     await prisma.onModuleInit();
     await redis.onModuleInit();
+    await ensureDefaultModel(prisma);
     model_id = (
       await prisma.model.findUniqueOrThrow({ where: { name: 'qwen2.5:1.5b' } })
     ).id;
