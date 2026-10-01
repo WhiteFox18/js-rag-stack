@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import type { AppEnvironment } from '../config/environment.schema';
 import { ModelCatalogService } from '../models/model-catalog.service';
 import { OllamaService } from '../ollama/ollama.service';
+import { UsageRecorderService } from '../usage/usage-recorder.service';
 import type { OllamaChatChunk } from '../ollama/ollama.types';
 import { ChatHistoryService } from './chat-history.service';
 import { ContextWindowService } from './context-window.service';
@@ -37,6 +38,7 @@ export class ChatStreamService {
     private readonly ollama: OllamaService,
     private readonly catalog: ModelCatalogService,
     private readonly contextWindow: ContextWindowService,
+    private readonly usage: UsageRecorderService,
     config: ConfigService<AppEnvironment, true>,
   ) {
     this.maxMessageChars = config.get('CHAT_MAX_MESSAGE_CHARS', {
@@ -122,6 +124,7 @@ export class ChatStreamService {
       });
 
       const prompt = await this.contextWindow.buildPrompt({
+        principal,
         chatId,
         model: selectedModel,
         history,
@@ -165,6 +168,14 @@ export class ChatStreamService {
         promptTokens: finalChunk.promptTokens,
         completionTokens: finalChunk.completionTokens,
         finishReason: finalChunk.finishReason,
+      });
+      await this.usage.record({
+        principal,
+        chatId,
+        modelId: selectedModel.id,
+        kind: 'CHAT',
+        inputTokens: finalChunk.promptTokens,
+        outputTokens: finalChunk.completionTokens,
       });
       await this.history.refresh(chatId);
       emit({

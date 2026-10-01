@@ -9,11 +9,12 @@ import { ContextWindowService } from './context-window.service';
 import { ChatsService } from './chats.service';
 import { ChatStreamService } from './chat-stream.service';
 import { ModelsModule } from '../models/models.module';
+import { UsageModule } from '../usage/usage.module';
 import { OllamaModule } from '../ollama/ollama.module';
 import { AnonymousSessionsModule } from '../anonymous-sessions/anonymous-sessions.module';
 
 @Module({
-  imports: [AnonymousSessionsModule, OllamaModule, ModelsModule],
+  imports: [AnonymousSessionsModule, OllamaModule, ModelsModule, UsageModule],
   controllers: [ChatsController],
   providers: [
     ChatHistoryService,

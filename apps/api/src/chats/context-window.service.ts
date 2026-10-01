@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { getErrorMessage } from '../common/utils/error';
 import type { AppEnvironment } from '../config/environment.schema';
 import type { ConversationSummary, Model } from '../generated/prisma/client';
+import { UsageRecorderService } from '../usage/usage-recorder.service';
 import { OllamaService } from '../ollama/ollama.service';
 import { ChatsRepository } from './chats.repository';
 import type {
@@ -35,6 +36,7 @@ export class ContextWindowService {
     private readonly summaries: ConversationSummaryRepository,
     private readonly repository: ChatsRepository,
     private readonly ollama: OllamaService,
+    private readonly usage: UsageRecorderService,
     config: ConfigService<AppEnvironment, true>,
   ) {
     this.settings = {
@@ -70,6 +72,7 @@ export class ContextWindowService {
   }
 
   async buildPrompt({
+    principal,
     chatId,
     model,
     history,
@@ -121,6 +124,7 @@ export class ContextWindowService {
         onSummarizing();
         try {
           summary = await this.summarize({
+            principal,
             chatId,
             model,
             previous: existing,
@@ -158,6 +162,7 @@ export class ContextWindowService {
   }
 
   private async summarize({
+    principal,
     chatId,
     model,
     previous,
@@ -184,6 +189,14 @@ export class ContextWindowService {
         contextTokens: model.max_context,
         maxTokens: budget.summaryMaxTokens,
         signal,
+      });
+      await this.usage.record({
+        principal,
+        chatId,
+        modelId: model.id,
+        kind: 'SUMMARY',
+        inputTokens: result.promptTokens,
+        outputTokens: result.completionTokens,
       });
       content = result.content.trim();
       if (isDegenerateSummary(content)) {
