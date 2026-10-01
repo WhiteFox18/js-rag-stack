@@ -17,7 +17,9 @@ export function parseCreateAdminArgs(argv: string[]): CreateAdminArgs {
 export function promptHidden(question: string): Promise<string> {
   const input = process.stdin;
   if (!input.isTTY) {
-    return Promise.reject(new Error('admin:create needs an interactive terminal.'));
+    return Promise.reject(
+      new Error('admin:create needs an interactive terminal.'),
+    );
   }
   return new Promise((resolve, reject) => {
     let value = '';
