@@ -1,5 +1,6 @@
 import { Injectable, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
+import { isAdminPath } from '../../admin/admin.helpers';
 import { AnonymousSessionsService } from '../../anonymous-sessions/anonymous-sessions.service';
 import { AuthCookieService } from '../../auth/auth-cookie.service';
 import { AuthService } from '../../auth/auth.service';
@@ -17,6 +18,12 @@ export class RequestPrincipalMiddleware implements NestMiddleware {
     _response: Response,
     next: NextFunction,
   ): Promise<void> {
+    // Admin requests never resolve or create a user/anonymous principal.
+    if (isAdminPath(request.originalUrl)) {
+      next();
+      return;
+    }
+
     const cookies = request.cookies as Record<string, unknown> | undefined;
     const accessToken = cookies?.[this.authCookies.accessCookieName];
 

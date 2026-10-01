@@ -121,3 +121,18 @@ export interface UpdateModelInput {
   isAvailable?: boolean;
   isDefault?: boolean;
 }
+
+export interface AdminProfile {
+  id: string;
+  email: string;
+  displayName: string | null;
+}
+
+export interface AdminAuthResponse {
+  admin: AdminProfile;
+}
+
+export interface AdminSignInInput {
+  email: string;
+  password: string;
+}

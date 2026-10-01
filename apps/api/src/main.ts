@@ -26,7 +26,10 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new ApiExceptionFilter());
   app.setGlobalPrefix('api/v1');
   app.enableCors({
-    origin: config.get('WEB_ORIGIN', { infer: true }),
+    origin: [
+      config.get('WEB_ORIGIN', { infer: true }),
+      config.get('ADMIN_ORIGIN', { infer: true }),
+    ],
     credentials: true,
   });
 

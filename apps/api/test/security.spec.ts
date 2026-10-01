@@ -96,6 +96,27 @@ describe('security helpers', () => {
     ).toThrow(ForbiddenException);
   });
 
+  it('isolates admin routes to ADMIN_ORIGIN and user routes to WEB_ORIGIN', () => {
+    const guard = new OriginGuard(config);
+    const post = (url: string, origin: string) =>
+      createContext({
+        method: 'POST',
+        originalUrl: url,
+        get: (name: string) =>
+          name.toLowerCase() === 'origin' ? origin : undefined,
+      } as unknown as Request);
+
+    expect(
+      guard.canActivate(post('/api/v1/admin/models', 'http://localhost:5174')),
+    ).toBe(true);
+    expect(() =>
+      guard.canActivate(post('/api/v1/admin/models', 'http://localhost:5173')),
+    ).toThrow(ForbiddenException);
+    expect(() =>
+      guard.canActivate(post('/api/v1/chats', 'http://localhost:5174')),
+    ).toThrow(ForbiddenException);
+  });
+
   it('adds credentials and a fresh CSRF token to Swagger mutations', async () => {
     const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,

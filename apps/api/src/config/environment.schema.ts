@@ -12,6 +12,7 @@ const environmentSchema = z
       .default('development'),
     API_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
     WEB_ORIGIN: z.url().default('http://localhost:5173'),
+    ADMIN_ORIGIN: z.url().default('http://localhost:5174'),
     DATABASE_URL: z
       .string()
       .min(1)
@@ -99,6 +100,18 @@ const environmentSchema = z
       .string()
       .optional()
       .transform((value) => value || undefined),
+    ADMIN_JWT_SECRET: z
+      .string()
+      .min(32)
+      .default('test-admin-secret-at-least-32-bytes!'),
+    ADMIN_ACCESS_TTL: z
+      .string()
+      .regex(/^\d+[dhm]$/)
+      .default('15m'),
+    ADMIN_REFRESH_TTL: z
+      .string()
+      .regex(/^\d+[dhm]$/)
+      .default('7d'),
   })
   .superRefine((environment, context) => {
     if (
@@ -121,6 +134,7 @@ const environmentSchema = z
       'JWT_ACCESS_SECRET',
       'JWT_REFRESH_SECRET',
       'CSRF_SECRET',
+      'ADMIN_JWT_SECRET',
     ] as const) {
       if (
         environment[key].startsWith('test-') ||

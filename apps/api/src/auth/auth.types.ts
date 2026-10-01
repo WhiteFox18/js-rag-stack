@@ -171,11 +171,6 @@ export interface ToSessionResponseParams {
   currentSessionId: string;
 }
 
-export interface GetCookieParams {
-  request: Request;
-  name: string;
-}
-
 export interface SetAuthCookiesParams {
   response: Response;
   tokens: AuthTokens;

@@ -38,6 +38,17 @@ describe('validateEnvironment', () => {
     ).toThrow('must be replaced in production');
   });
 
+  it('rejects the placeholder ADMIN_JWT_SECRET in production', () => {
+    expect(() =>
+      validateEnvironment({
+        NODE_ENV: 'production',
+        JWT_ACCESS_SECRET: 'a-real-access-secret-with-32-bytes-1',
+        JWT_REFRESH_SECRET: 'a-real-refresh-secret-with-32-bytes',
+        CSRF_SECRET: 'a-real-csrf-secret-with-32-bytes-ok',
+      }),
+    ).toThrow('ADMIN_JWT_SECRET');
+  });
+
   it('provides context window defaults and rejects an inverted target', () => {
     expect(validateEnvironment({})).toEqual(
       expect.objectContaining({
