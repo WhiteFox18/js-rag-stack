@@ -211,6 +211,7 @@ export interface PromptMessagesParams {
 }
 
 export interface BuildPromptParams {
+  principal: RequestPrincipal;
   chatId: string;
   model: Model;
   history: ChatHistoryEntry[];
@@ -225,6 +226,7 @@ export interface BuiltPrompt {
 }
 
 export interface SummarizeParams {
+  principal: RequestPrincipal;
   chatId: string;
   model: Model;
   previous: ConversationSummary | null;

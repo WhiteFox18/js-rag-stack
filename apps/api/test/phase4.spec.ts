@@ -177,6 +177,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
         };
       },
     };
+    const usage = { record: jest.fn().mockResolvedValue(undefined) };
     const service = new ChatStreamService(
       repository as never,
       {
@@ -194,16 +195,18 @@ describe('phase 4 Ollama and SSE contracts', () => {
         resolveForGeneration: jest.fn().mockResolvedValue(createModelRecord()),
       } as never,
       contextWindow as never,
+      usage as never,
       config,
     );
+    const principal = {
+      type: 'anonymous' as const,
+      anonymous_session_id: 'anonymous-id',
+    };
     const events: ChatStreamEvent[] = [];
 
     await service.stream({
       chatId: 'chat-id',
-      principal: {
-        type: 'anonymous',
-        anonymous_session_id: 'anonymous-id',
-      },
+      principal,
       content: 'Current',
       signal: new AbortController().signal,
       emit: (event) => events.push(event),
@@ -215,6 +218,14 @@ describe('phase 4 Ollama and SSE contracts', () => {
       promptTokens: 12,
       completionTokens: 2,
       finishReason: 'stop',
+    });
+    expect(usage.record).toHaveBeenCalledWith({
+      principal,
+      chatId: 'chat-id',
+      modelId: createModelRecord().id,
+      kind: 'CHAT',
+      inputTokens: expect.any(Number) as number,
+      outputTokens: expect.any(Number) as number,
     });
     expect(history.refresh).toHaveBeenCalledWith('chat-id');
     expect(events.map((event) => event.event)).toEqual([
@@ -236,6 +247,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
     });
     expect(contextWindow.buildPrompt).toHaveBeenCalledWith(
       expect.objectContaining({
+        principal,
         chatId: 'chat-id',
         content: 'Current',
         history: [{ id: 'earlier', role: 'user', content: 'Earlier' }],
@@ -269,6 +281,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
           );
         }),
       } as never,
+      { record: jest.fn().mockResolvedValue(undefined) } as never,
       config,
     );
 
@@ -298,6 +311,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
         },
       ),
     };
+    const usage = { record: jest.fn().mockResolvedValue(undefined) };
     const controller = new AbortController();
     const repository = {
       beginGeneration: jest.fn().mockResolvedValue({
@@ -339,6 +353,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
         resolveForGeneration: jest.fn().mockResolvedValue(createModelRecord()),
       } as never,
       contextWindow as never,
+      usage as never,
       config,
     );
     const events: ChatStreamEvent[] = [];
@@ -362,6 +377,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
       event: 'stream.cancelled',
       data: { assistantMessageId: 'assistant-message', status: 'cancelled' },
     });
+    expect(usage.record).not.toHaveBeenCalled();
   });
 
   it('persists a failed generation and refreshes history when Ollama is down', async () => {
@@ -417,6 +433,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
         resolveForGeneration: jest.fn().mockResolvedValue(createModelRecord()),
       } as never,
       contextWindow as never,
+      { record: jest.fn().mockResolvedValue(undefined) } as never,
       config,
     );
     const events: ChatStreamEvent[] = [];
@@ -463,6 +480,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
           ),
       } as never,
       { assertContentFits: jest.fn() } as never,
+      { record: jest.fn().mockResolvedValue(undefined) } as never,
       config,
     );
     await expect(

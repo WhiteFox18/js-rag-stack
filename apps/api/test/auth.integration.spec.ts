@@ -18,6 +18,8 @@ import {
 } from '../src/config/environment.schema';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { RedisService } from '../src/redis/redis.service';
+import { UsageRepository } from '../src/usage/usage.repository';
+import { UsageTransferService } from '../src/usage/usage-transfer.service';
 
 describe('authentication sessions', () => {
   let prisma: PrismaService;
@@ -56,7 +58,10 @@ describe('authentication sessions', () => {
       config,
     );
     auth = new AuthService(
-      new AuthRepository(prisma),
+      new AuthRepository(
+        prisma,
+        new UsageTransferService(new UsageRepository(prisma)),
+      ),
       new JwtService(),
       authCookies,
       anonymousSessions,

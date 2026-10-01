@@ -87,16 +87,29 @@ function setup({
   };
   const ollama = {
     complete: jest
-      .fn<Promise<{ content: string; completionTokens?: number }>, [unknown]>()
-      .mockResolvedValue({ content: ' New summary ', completionTokens: 5 }),
+      .fn<
+        Promise<{
+          content: string;
+          promptTokens?: number;
+          completionTokens?: number;
+        }>,
+        [unknown]
+      >()
+      .mockResolvedValue({
+        content: ' New summary ',
+        promptTokens: 40,
+        completionTokens: 5,
+      }),
   };
+  const usage = { record: jest.fn().mockResolvedValue(undefined) };
   const service = new ContextWindowService(
     summaries as never,
     repository as never,
     ollama as never,
+    usage as never,
     config,
   );
-  return { service, summaries, repository, ollama };
+  return { service, summaries, repository, ollama, usage };
 }
 
 function build(
@@ -104,6 +117,7 @@ function build(
   overrides: Partial<Parameters<ContextWindowService['buildPrompt']>[0]> = {},
 ) {
   return service.buildPrompt({
+    principal: { type: 'anonymous', anonymous_session_id: 'anon' },
     chatId: 'chat-id',
     model: model(),
     history: [],
@@ -180,10 +194,20 @@ describe('ContextWindowService', () => {
   });
 
   it('summarizes a large backlog in chunks', async () => {
-    const { service, ollama, summaries } = setup();
+    const { service, ollama, summaries, usage } = setup();
     await build(service, { history: history(12, 600) });
 
     expect(ollama.complete.mock.calls.length).toBeGreaterThan(1);
+    expect(usage.record).toHaveBeenCalledTimes(
+      ollama.complete.mock.calls.length,
+    );
+    expect(usage.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'SUMMARY',
+        inputTokens: 40,
+        outputTokens: 5,
+      }),
+    );
     // later chunks build on the previous chunk's summary
     const secondRequest = ollama.complete.mock.calls[1]?.[0] as {
       messages: { content: string }[];

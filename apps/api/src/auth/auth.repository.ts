@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { AuthSession, Prisma, User } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { UsageTransferService } from '../usage/usage-transfer.service';
 import type {
   ActiveAccessSession,
   AuthSessionWithUser,
@@ -21,7 +22,10 @@ export class SessionAlreadyRotatedError extends Error {}
 
 @Injectable()
 export class AuthRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly usageTransfer: UsageTransferService,
+  ) {}
 
   async createUserWithSession({
     input,
@@ -240,6 +244,12 @@ export class AuthRepository {
     await transaction.chat.updateMany({
       where: { anonymous_session_id: anonymousSessionId },
       data: { anonymous_session_id: null, user_id: userId },
+    });
+    // Must run before the session row is deleted: usage FKs are SET NULL.
+    await this.usageTransfer.reassignAnonymousUsage({
+      transaction,
+      anonymousSessionId,
+      userId,
     });
     await transaction.anonymousSession.deleteMany({
       where: { id: anonymousSessionId },
