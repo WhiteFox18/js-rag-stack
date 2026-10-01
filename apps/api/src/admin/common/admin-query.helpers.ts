@@ -6,7 +6,7 @@ import type {
 } from '@js-rag-stack/contracts';
 import { toSafeNumber } from '../../usage/usage.helpers';
 import type { PageRequest, UsageRange } from '../../usage/usage.types';
-import type { UsageAggregateColumns } from './admin-list.sql';
+import type { UsageAggregateColumns } from '../../usage/usage-aggregate.sql';
 
 export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;

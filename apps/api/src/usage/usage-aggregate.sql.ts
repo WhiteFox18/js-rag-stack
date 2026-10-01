@@ -1,6 +1,8 @@
-import { Prisma } from '../../generated/prisma/client';
-import type { UsageRange } from '../../usage/usage.types';
+import { Prisma } from '../generated/prisma/client';
+import type { UsageRange } from './usage.types';
 
+// Admin list repositories join this fragment because sorting/paging across all
+// owners by aggregated usage can't go through per-owner service calls.
 export function usageRangeSql(range: UsageRange): Prisma.Sql {
   return Prisma.sql`${range.from ? Prisma.sql` AND created_at >= ${range.from}` : Prisma.empty}${
     range.to ? Prisma.sql` AND created_at < ${range.to}` : Prisma.empty

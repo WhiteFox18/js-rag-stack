@@ -11,6 +11,7 @@ import {
 import {
   ApiConflictResponse,
   ApiCookieAuth,
+  ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -42,7 +43,7 @@ export class AdminModelsController {
 
   @Post()
   @ApiOperation({ summary: 'Register a model' })
-  @ApiOkResponse({ type: AdminModelDto })
+  @ApiCreatedResponse({ type: AdminModelDto })
   @ApiConflictResponse({ description: 'Duplicate name' })
   create(@Body() body: CreateModelDto): Promise<AdminModel> {
     return this.models.create(body);
