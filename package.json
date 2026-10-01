@@ -24,6 +24,6 @@
   "devDependencies": {
     "prettier": "3.8.4",
     "turbo": "2.9.17",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   }
 }

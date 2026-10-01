@@ -22,6 +22,6 @@
     "@js-rag-stack/eslint-config": "workspace:*",
     "@js-rag-stack/typescript-config": "workspace:*",
     "eslint": "10.4.1",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   }
 }
