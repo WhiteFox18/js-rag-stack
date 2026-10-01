@@ -411,6 +411,72 @@ describe('persistence foundation', () => {
     await next?.release();
   });
 
+  it('allows only one default model and never an unavailable default', async () => {
+    const name = `test-model-${randomBytes(4).toString('hex')}`;
+    const extra = await prisma.model.create({
+      data: { name, max_context: 4096 },
+    });
+    try {
+      await expect(
+        prisma.model.update({
+          where: { id: extra.id },
+          data: { is_default: true },
+        }),
+      ).rejects.toThrow();
+      await expect(
+        prisma.model.update({
+          where: { id: model_id },
+          data: { is_available: false },
+        }),
+      ).rejects.toThrow();
+    } finally {
+      await prisma.model.delete({ where: { id: extra.id } });
+    }
+  });
+
+  it('keeps usage rows when their chat is deleted', async () => {
+    const session = await createAnonymousSession();
+    const chat = await prisma.chat.create({
+      data: {
+        anonymous_session_id: session.id,
+        title: 'Usage keep',
+        selected_model_id: model_id,
+      },
+    });
+    const row = await prisma.usageLog.create({
+      data: {
+        anonymous_session_id: session.id,
+        chat_id: chat.id,
+        model_id,
+        kind: 'CHAT',
+        input_tokens: 10,
+        output_tokens: 5,
+      },
+    });
+    await prisma.chat.delete({ where: { id: chat.id } });
+    const kept = await prisma.usageLog.findUniqueOrThrow({
+      where: { id: row.id },
+    });
+    expect(kept.chat_id).toBeNull();
+    expect(kept.anonymous_session_id).toBe(session.id);
+    await prisma.usageLog.delete({ where: { id: row.id } });
+  });
+
+  it('rejects negative token counts', async () => {
+    const session = await createAnonymousSession();
+    await expect(
+      prisma.usageLog.create({
+        data: {
+          anonymous_session_id: session.id,
+          model_id,
+          kind: 'SUMMARY',
+          input_tokens: -1,
+          output_tokens: 0,
+        },
+      }),
+    ).rejects.toThrow();
+  });
+
   it('reports PostgreSQL and Redis readiness', async () => {
     await expect(health.readiness()).resolves.toEqual({
       status: 'ready',

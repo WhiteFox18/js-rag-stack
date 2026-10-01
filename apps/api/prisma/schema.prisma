@@ -26,13 +26,21 @@ enum TokenCountSource {
   UNKNOWN
 }
 
+enum UsageKind {
+  CHAT
+  SUMMARY
+}
+
 model Model {
-  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  name        String   @unique @db.VarChar(200)
-  max_context Int
-  created_at  DateTime @default(now()) @db.Timestamptz(3)
-  updated_at  DateTime @updatedAt @db.Timestamptz(3)
-  chats       Chat[]   @relation("model_chats")
+  id           String     @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name         String     @unique @db.VarChar(200)
+  max_context  Int
+  is_available Boolean    @default(true)
+  is_default   Boolean    @default(false)
+  created_at   DateTime   @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime   @updatedAt @db.Timestamptz(3)
+  chats        Chat[]     @relation("model_chats")
+  usage_logs   UsageLog[] @relation("model_usage_logs")
 
   @@map("model")
 }
@@ -46,6 +54,7 @@ model User {
   updated_at    DateTime      @updatedAt @db.Timestamptz(3)
   chats         Chat[]        @relation("user_chats")
   auth_sessions AuthSession[] @relation("user_auth_sessions")
+  usage_logs    UsageLog[]    @relation("user_usage_logs")
 
   @@map("user")
 }
@@ -57,6 +66,7 @@ model AnonymousSession {
   created_at   DateTime @default(now()) @db.Timestamptz(3)
   last_seen_at DateTime @default(now()) @db.Timestamptz(3)
   chats        Chat[]   @relation("anonymous_session_chats")
+  usage_logs   UsageLog[] @relation("anonymous_session_usage_logs")
 
   @@index([expires_at])
   @@map("anonymous_session")
@@ -99,6 +109,7 @@ model Chat {
   selected_model       Model                @relation("model_chats", fields: [selected_model_id], references: [id], onDelete: Restrict)
   messages             Message[]            @relation("chat_messages")
   conversation_summary ConversationSummary? @relation("chat_conversation_summary")
+  usage_logs           UsageLog[]           @relation("chat_usage_logs")
 
   @@index([user_id, last_message_at])
   @@index([anonymous_session_id, last_message_at])
@@ -141,4 +152,55 @@ model ConversationSummary {
   summarized_through_message    Message  @relation("conversation_summary_through_message", fields: [summarized_through_message_id], references: [id], onDelete: Cascade)
 
   @@map("conversation_summary")
+}
+
+model UsageLog {
+  id                   String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  user_id              String?           @db.Uuid
+  anonymous_session_id String?           @db.Uuid
+  chat_id              String?           @db.Uuid
+  model_id             String            @db.Uuid
+  kind                 UsageKind
+  input_tokens         Int
+  output_tokens        Int
+  created_at           DateTime          @default(now()) @db.Timestamptz(3)
+  user                 User?             @relation("user_usage_logs", fields: [user_id], references: [id], onDelete: SetNull)
+  anonymous_session    AnonymousSession? @relation("anonymous_session_usage_logs", fields: [anonymous_session_id], references: [id], onDelete: SetNull)
+  chat                 Chat?             @relation("chat_usage_logs", fields: [chat_id], references: [id], onDelete: SetNull)
+  model                Model             @relation("model_usage_logs", fields: [model_id], references: [id], onDelete: Restrict)
+
+  @@index([user_id, created_at])
+  @@index([anonymous_session_id, created_at])
+  @@index([created_at])
+  @@index([model_id])
+  @@map("usage_log")
+}
+
+model Admin {
+  id              String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  email           String         @unique @db.VarChar(320)
+  password_hash   String         @db.Text
+  display_name    String?        @db.VarChar(100)
+  last_sign_in_at DateTime?      @db.Timestamptz(3)
+  created_at      DateTime       @default(now()) @db.Timestamptz(3)
+  updated_at      DateTime       @updatedAt @db.Timestamptz(3)
+  sessions        AdminSession[] @relation("admin_sessions")
+
+  @@map("admin")
+}
+
+model AdminSession {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  admin_id           String    @db.Uuid
+  refresh_token_hash String    @unique @db.Char(64)
+  refresh_jti        String    @unique @default(dbgenerated("uuidv7()")) @db.Uuid
+  expires_at         DateTime  @db.Timestamptz(3)
+  revoked_at         DateTime? @db.Timestamptz(3)
+  created_at         DateTime  @default(now()) @db.Timestamptz(3)
+  last_used_at       DateTime  @default(now()) @db.Timestamptz(3)
+  admin              Admin     @relation("admin_sessions", fields: [admin_id], references: [id], onDelete: Cascade)
+
+  @@index([admin_id])
+  @@index([expires_at])
+  @@map("admin_session")
 }
