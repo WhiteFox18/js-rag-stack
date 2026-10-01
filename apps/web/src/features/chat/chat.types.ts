@@ -76,6 +76,7 @@ export interface MessageListProps {
 export interface ModelSelectorProps {
   models: ModelInfo[];
   value: string | null;
+  unavailableModel: string | null;
   disabled: boolean;
   onChange: (model: string) => void;
 }
