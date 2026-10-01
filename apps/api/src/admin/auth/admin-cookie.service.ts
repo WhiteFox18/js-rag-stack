@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { CookieOptions, Response } from 'express';
 import { parseDurationMs } from '../../common/utils/duration';
 import type { AppEnvironment } from '../../config/environment.schema';
-import { ADMIN_ROUTE_PREFIX } from '../admin.helpers';
+import { ADMIN_ROUTE_PREFIX } from '../../common/utils/admin-path';
 import type { AdminTokens } from './admin-auth.types';
 
 const REFRESH_PATH = `${ADMIN_ROUTE_PREFIX}/auth`;
