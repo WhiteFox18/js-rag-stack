@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import type { SafeEqualParams } from './security.types';
 
 export function safeEqual({ left, right }: SafeEqualParams): boolean {
@@ -8,4 +8,8 @@ export function safeEqual({ left, right }: SafeEqualParams): boolean {
     leftBuffer.length === rightBuffer.length &&
     timingSafeEqual(leftBuffer, rightBuffer)
   );
+}
+
+export function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
 }

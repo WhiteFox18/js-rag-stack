@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import type {
@@ -8,14 +7,10 @@ import type {
 import type { User } from '../generated/prisma/client';
 import type { AuthUserDto } from './models/auth-response.dto';
 import type { SessionResponseDto } from './models/session-response.dto';
-import type { GetCookieParams, ToSessionResponseParams } from './auth.types';
+import type { ToSessionResponseParams } from './auth.types';
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
-}
-
-export function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
 }
 
 export function getAnonymousPrincipal(
@@ -44,16 +39,6 @@ export function toSessionResponse({
 
 export function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-export function getCookie({ request, name }: GetCookieParams): string {
-  const cookies = request.cookies as Record<string, unknown> | undefined;
-  const value = cookies?.[name];
-
-  if (typeof value !== 'string') {
-    throw new UnauthorizedException('Refresh token is required.');
-  }
-  return value;
 }
 
 export function getAuthenticatedPrincipal(

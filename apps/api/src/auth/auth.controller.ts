@@ -23,11 +23,13 @@ import type { Request, Response } from 'express';
 import { CsrfService } from '../common/security/csrf.service';
 import { AccessAuthGuard } from './access-auth.guard';
 import { AuthCookieService } from './auth-cookie.service';
-import { getAuthenticatedPrincipal, getCookie } from './auth.helpers';
+import { getAuthenticatedPrincipal } from './auth.helpers';
+import { CsrfResponseDto } from '../common/security/csrf-response.dto';
+import { getCookie } from '../common/utils/cookies';
 import { AuthService } from './auth.service';
 import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
-import { AuthResponseDto, CsrfResponseDto } from './models/auth-response.dto';
+import { AuthResponseDto } from './models/auth-response.dto';
 import { SessionResponseDto } from './models/session-response.dto';
 
 @ApiTags('auth')

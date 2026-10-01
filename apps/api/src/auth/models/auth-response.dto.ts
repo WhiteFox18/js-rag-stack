@@ -15,8 +15,3 @@ export class AuthResponseDto {
   @ApiProperty({ type: AuthUserDto })
   user!: AuthUserDto;
 }
-
-export class CsrfResponseDto {
-  @ApiProperty({ description: 'Send this value in the X-CSRF-Token header.' })
-  csrfToken!: string;
-}
