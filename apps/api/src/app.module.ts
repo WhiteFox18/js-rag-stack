@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { validateEnvironment } from './config/environment.schema';
 import { HealthModule } from './health/health.module';
@@ -34,6 +35,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     ModelsModule,
     UsageModule,
     ChatsModule,
+    AdminModule,
     HealthModule,
   ],
   providers: [
