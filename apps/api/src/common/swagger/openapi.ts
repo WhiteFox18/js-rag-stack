@@ -28,6 +28,24 @@ export function createOpenApiDocument(app: INestApplication): OpenAPIObject {
       },
       'refresh_token',
     )
+    .addCookieAuth(
+      'admin_access_token',
+      {
+        type: 'apiKey',
+        in: 'cookie',
+        name: 'admin_access_token',
+      },
+      'admin_access_token',
+    )
+    .addCookieAuth(
+      'admin_refresh_token',
+      {
+        type: 'apiKey',
+        in: 'cookie',
+        name: 'admin_refresh_token',
+      },
+      'admin_refresh_token',
+    )
     .build();
 
   return SwaggerModule.createDocument(app, config);

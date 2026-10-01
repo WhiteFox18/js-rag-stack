@@ -1,3 +1,9 @@
+import { BadRequestException } from '@nestjs/common';
+import {
+  escapeLike,
+  toPageRequest,
+  toUsageRange,
+} from '../src/admin/common/admin-query.helpers';
 import { parseCreateAdminArgs } from '../src/cli/create-admin.helpers';
 import { isAdminPath } from '../src/common/utils/admin-path';
 
@@ -19,14 +25,46 @@ describe('isAdminPath', () => {
 
 describe('parseCreateAdminArgs', () => {
   it('parses email and optional name', () => {
-    expect(parseCreateAdminArgs(['--email', 'a@b.co', '--name', 'Ops'])).toEqual({
+    expect(
+      parseCreateAdminArgs(['--email', 'a@b.co', '--name', 'Ops']),
+    ).toEqual({
       email: 'a@b.co',
       name: 'Ops',
     });
-    expect(parseCreateAdminArgs(['--email=a@b.co'])).toEqual({ email: 'a@b.co', name: null });
+    expect(parseCreateAdminArgs(['--email=a@b.co'])).toEqual({
+      email: 'a@b.co',
+      name: null,
+    });
   });
 
   it('requires --email', () => {
-    expect(() => parseCreateAdminArgs([])).toThrow('Usage: admin:create --email <email> [--name <name>]');
+    expect(() => parseCreateAdminArgs([])).toThrow(
+      'Usage: admin:create --email <email> [--name <name>]',
+    );
+  });
+});
+
+describe('admin query helpers', () => {
+  it('defaults paging', () => {
+    expect(toPageRequest({})).toEqual({ page: 1, pageSize: 25 });
+    expect(toPageRequest({ page: 3, pageSize: 10 })).toEqual({
+      page: 3,
+      pageSize: 10,
+    });
+  });
+
+  it('parses ranges and rejects inverted ones', () => {
+    expect(toUsageRange({})).toEqual({});
+    expect(toUsageRange({ from: '2026-09-01', to: '2026-10-01' })).toEqual({
+      from: new Date('2026-09-01'),
+      to: new Date('2026-10-01'),
+    });
+    expect(() =>
+      toUsageRange({ from: '2026-10-01', to: '2026-09-01' }),
+    ).toThrow(BadRequestException);
+  });
+
+  it('escapes LIKE wildcards', () => {
+    expect(escapeLike('50%_off\\')).toBe('50\\%\\_off\\\\');
   });
 });

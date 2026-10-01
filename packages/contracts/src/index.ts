@@ -171,3 +171,55 @@ export interface Paginated<T> {
   pageSize: number;
   total: number;
 }
+
+export type AdminUserSort = 'lastActivity' | 'totalTokens' | 'createdAt';
+
+export interface UsageRangeQuery {
+  from?: string;
+  to?: string;
+}
+
+export interface PageQuery {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminUserListItem {
+  id: string;
+  email: string;
+  displayName: string | null;
+  createdAt: string;
+  usage: UsageTotals;
+}
+
+export interface AdminUserDetail {
+  user: {
+    id: string;
+    email: string;
+    displayName: string | null;
+    createdAt: string;
+  };
+  usage: UsageTotals;
+  breakdown: UsageBreakdownItem[];
+}
+
+export interface AdminAnonymousListItem {
+  id: string;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  chatCount: number;
+  usage: UsageTotals;
+}
+
+export interface AdminAnonymousDetail {
+  session: {
+    id: string;
+    createdAt: string;
+    lastSeenAt: string;
+    expiresAt: string;
+    chatCount: number;
+  };
+  usage: UsageTotals;
+  breakdown: UsageBreakdownItem[];
+}
