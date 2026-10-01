@@ -26,8 +26,9 @@ env var. There is no admin concept at all.
 
 ### Success criteria
 
-- Every completed chat reply and every completed summarization writes exactly one
-  `usage_log` row with Ollama-reported input/output token counts.
+- Every completed chat reply and every summarization Ollama call (a large
+  backlog may take several chunked calls) writes exactly one `usage_log` row
+  with Ollama-reported input/output token counts.
 - Deleting a chat does not delete its usage rows.
 - When an anonymous visitor signs up or signs in, their usage rows move to the
   user in the same transaction as their chats.
@@ -93,8 +94,9 @@ failed generations (Ollama reports no token counts for them).
 
 `id`, `admin_id` (FK cascade), `refresh_token_hash` (unique CHAR 64),
 `refresh_jti` (unique uuidv7), `expires_at`, `revoked_at?`, `created_at`,
-`last_used_at`. Refresh rotates in place: the row's hash/jti are replaced and
-the old token stops validating. Indexes: `admin_id`, `expires_at`.
+`last_used_at`. Refresh revokes the current row and creates a new one in a
+single transaction (no rotation chain); a reused refresh token loses the race
+and gets 401. Indexes: `admin_id`, `expires_at`.
 
 ## 4. Backend architecture (Nest modules + SOLID)
 
