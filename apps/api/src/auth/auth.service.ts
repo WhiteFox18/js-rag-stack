@@ -15,13 +15,13 @@ import {
   parseDurationMs,
   parseDurationSeconds,
 } from '../common/utils/duration';
+import { isUniqueViolation } from '../common/utils/error';
 import type { AppEnvironment } from '../config/environment.schema';
 import { AuthCookieService } from './auth-cookie.service';
 import {
   capitalize,
   getAnonymousPrincipal,
   hashToken,
-  isUniqueViolation,
   normalizeEmail,
   toAuthUser,
   toSessionResponse,
