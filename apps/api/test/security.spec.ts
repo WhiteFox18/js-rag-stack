@@ -115,6 +115,11 @@ describe('security helpers', () => {
     expect(() =>
       guard.canActivate(post('/api/v1/chats', 'http://localhost:5174')),
     ).toThrow(ForbiddenException);
+    expect(() =>
+      guard.canActivate(
+        post('/api/v1/ADMIN/auth/sign-in', 'http://localhost:5173'),
+      ),
+    ).toThrow(ForbiddenException);
   });
 
   it('adds credentials and a fresh CSRF token to Swagger mutations', async () => {

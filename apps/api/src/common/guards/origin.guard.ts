@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
-import { isAdminPath } from '../../admin/admin.helpers';
+import { isAdminPath } from '../utils/admin-path';
 import type { AppEnvironment } from '../../config/environment.schema';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);

@@ -9,6 +9,8 @@ import type { AppEnvironment } from '../../config/environment.schema';
 import { normalizeAdminEmail, toAdminProfile } from './admin-auth.helpers';
 import {
   AdminSessionRotatedError,
+  type AdminSessionCredentials,
+  type AdminSessionIdentity,
   type AdminRefreshParams,
   type AdminSignInParams,
   type AdminSignOutParams,
@@ -90,9 +92,7 @@ export class AdminAuthService {
       this.cookies.set(response, tokens);
     } catch (error) {
       if (error instanceof AdminSessionRotatedError) {
-        throw new UnauthorizedException(
-          'Admin refresh token has already been used.',
-        );
+        throw new UnauthorizedException('Admin refresh token is invalid.');
       }
       throw error;
     }
@@ -124,8 +124,8 @@ export class AdminAuthService {
   }
 
   private async credentials(
-    identity: Parameters<AdminTokenService['sign']>[0],
-  ) {
+    identity: AdminSessionIdentity,
+  ): Promise<AdminSessionCredentials> {
     const tokens = await this.tokens.sign(identity);
     return { tokens, refreshTokenHash: hashToken(tokens.refreshToken) };
   }

@@ -1,6 +1,6 @@
 import { Injectable, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
-import { isAdminPath } from '../../admin/admin.helpers';
+import { isAdminPath } from '../utils/admin-path';
 import { AnonymousSessionsService } from '../../anonymous-sessions/anonymous-sessions.service';
 import { AuthCookieService } from '../../auth/auth-cookie.service';
 import { AuthService } from '../../auth/auth.service';

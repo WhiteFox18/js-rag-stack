@@ -146,6 +146,33 @@ describe('admin authentication', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
+  it('rejects admin-secret tokens without the admin audience and refresh tokens as access', async () => {
+    const email = await createAdmin();
+    const signed = response();
+    const profile = await auth.signIn({
+      input: { email, password },
+      response: signed.res,
+    });
+    const principal = await auth.authenticate(
+      signed.jar[cookies.accessCookieName]!,
+    );
+    const noAudience = await new JwtService().signAsync(
+      {
+        sub: profile.id,
+        sessionId: principal.admin_session_id,
+        jti: 'j',
+        type: 'access',
+      },
+      { secret: config.get('ADMIN_JWT_SECRET', { infer: true }) },
+    );
+    await expect(auth.authenticate(noAudience)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    await expect(
+      auth.authenticate(signed.jar[cookies.refreshCookieName]!),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
   it('upsert creates then resets the password; rejects short passwords', async () => {
     const email = await createAdmin();
     await accounts.upsert({ email, password: 'a-brand-new-password' });
