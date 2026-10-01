@@ -4,6 +4,7 @@ import type { Request, Response } from 'express';
 import { CsrfGuard } from '../src/common/guards/csrf.guard';
 import { OriginGuard } from '../src/common/guards/origin.guard';
 import { CsrfService } from '../src/common/security/csrf.service';
+import { Argon2PasswordHasher } from '../src/common/security/password-hasher';
 import { swaggerRequestInterceptor } from '../src/common/swagger/swagger.helpers';
 import {
   type AppEnvironment,
@@ -121,3 +122,21 @@ function createContext(request: Request): ExecutionContext {
     switchToHttp: () => ({ getRequest: () => request }),
   } as ExecutionContext;
 }
+
+describe('Argon2PasswordHasher', () => {
+  it('hashes with argon2id and verifies', async () => {
+    const hasher = new Argon2PasswordHasher();
+    const hash = await hasher.hash('correct horse battery');
+    expect(hash.startsWith('$argon2id$')).toBe(true);
+    await expect(
+      hasher.verify({ hash, plain: 'correct horse battery' }),
+    ).resolves.toBe(true);
+    await expect(hasher.verify({ hash, plain: 'wrong' })).resolves.toBe(false);
+  });
+
+  it('returns false for a malformed hash instead of throwing', async () => {
+    await expect(
+      new Argon2PasswordHasher().verify({ hash: 'not-a-hash', plain: 'x' }),
+    ).resolves.toBe(false);
+  });
+});

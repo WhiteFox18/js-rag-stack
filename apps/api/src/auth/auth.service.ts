@@ -6,11 +6,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import * as argon2 from 'argon2';
 import type { Request } from 'express';
 import { AnonymousSessionsService } from '../anonymous-sessions/anonymous-sessions.service';
 import { ChatHistoryService } from '../chats/chat-history.service';
 import type { RequestPrincipal } from '../common/models/request-principal';
+import { PasswordHasher } from '../common/security/password-hasher';
 import {
   parseDurationMs,
   parseDurationSeconds,
@@ -63,6 +63,7 @@ export class AuthService {
     private readonly cookies: AuthCookieService,
     private readonly anonymousSessions: AnonymousSessionsService,
     private readonly history: ChatHistoryService,
+    private readonly passwords: PasswordHasher,
     config: ConfigService<AppEnvironment, true>,
   ) {
     this.accessSecret = config.get('JWT_ACCESS_SECRET', { infer: true });
@@ -85,12 +86,7 @@ export class AuthService {
     request,
     response,
   }: SignUpParams): Promise<AuthUserDto> {
-    const passwordHash = await argon2.hash(input.password, {
-      type: argon2.argon2id,
-      memoryCost: 19_456,
-      timeCost: 2,
-      parallelism: 1,
-    });
+    const passwordHash = await this.passwords.hash(input.password);
     const anonymousPrincipal = getAnonymousPrincipal(principal);
     let creation;
 
@@ -135,7 +131,10 @@ export class AuthService {
       normalizeEmail(input.email),
     );
 
-    if (!user || !(await argon2.verify(user.password_hash, input.password))) {
+    if (!user || !(await this.passwords.verify({
+        hash: user.password_hash,
+        plain: input.password,
+      }))) {
       throw new UnauthorizedException('Invalid email or password.');
     }
 
