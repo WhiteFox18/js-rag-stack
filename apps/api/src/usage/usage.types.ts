@@ -32,3 +32,28 @@ export interface ReassignAnonymousUsageParams {
   anonymousSessionId: string;
   userId: string;
 }
+
+export interface UsageRange {
+  from?: Date;
+  to?: Date;
+}
+
+export interface PageRequest {
+  page: number;
+  pageSize: number;
+}
+
+export interface UsageQueryParams {
+  owner: UsageOwner;
+  range: UsageRange;
+}
+
+export interface UsageRowsParams extends UsageQueryParams {
+  page: PageRequest;
+}
+
+export interface FindUsageRowsParams {
+  where: Prisma.UsageLogWhereInput;
+  skip: number;
+  take: number;
+}
