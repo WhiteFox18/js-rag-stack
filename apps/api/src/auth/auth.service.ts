@@ -131,10 +131,13 @@ export class AuthService {
       normalizeEmail(input.email),
     );
 
-    if (!user || !(await this.passwords.verify({
+    if (
+      !user ||
+      !(await this.passwords.verify({
         hash: user.password_hash,
         plain: input.password,
-      }))) {
+      }))
+    ) {
       throw new UnauthorizedException('Invalid email or password.');
     }
 

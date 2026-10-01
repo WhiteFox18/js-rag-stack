@@ -722,6 +722,9 @@
           "selectedModel": {
             "type": "string"
           },
+          "selectedModelAvailable": {
+            "type": "boolean"
+          },
           "archivedAt": {
             "type": "object",
             "nullable": true
@@ -740,6 +743,7 @@
           "id",
           "title",
           "selectedModel",
+          "selectedModelAvailable",
           "createdAt",
           "updatedAt",
           "lastMessageAt"
@@ -872,6 +876,9 @@
           "selectedModel": {
             "type": "string"
           },
+          "selectedModelAvailable": {
+            "type": "boolean"
+          },
           "archivedAt": {
             "type": "object",
             "nullable": true
@@ -903,6 +910,7 @@
           "id",
           "title",
           "selectedModel",
+          "selectedModelAvailable",
           "createdAt",
           "updatedAt",
           "lastMessageAt",

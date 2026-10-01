@@ -22,6 +22,7 @@ export class ChatSummaryDto {
   @ApiProperty() id!: string;
   @ApiProperty() title!: string;
   @ApiProperty() selectedModel!: string;
+  @ApiProperty() selectedModelAvailable!: boolean;
   @ApiPropertyOptional({ nullable: true }) archivedAt!: string | null;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;

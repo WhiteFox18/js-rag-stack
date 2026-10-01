@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppEnvironment } from '../config/environment.schema';
+import { ModelCatalogService } from '../models/model-catalog.service';
 import { OllamaService } from '../ollama/ollama.service';
 import type { OllamaChatChunk } from '../ollama/ollama.types';
 import { ChatHistoryService } from './chat-history.service';
@@ -34,6 +35,7 @@ export class ChatStreamService {
     private readonly history: ChatHistoryService,
     private readonly locks: RedisLockService,
     private readonly ollama: OllamaService,
+    private readonly catalog: ModelCatalogService,
     private readonly contextWindow: ContextWindowService,
     config: ConfigService<AppEnvironment, true>,
   ) {
@@ -63,7 +65,7 @@ export class ChatStreamService {
     }
 
     const chat = await this.ownership.findOwnedChat({ chatId, principal });
-    const selectedModel = await this.ollama.assertAllowed(
+    const selectedModel = await this.catalog.resolveForGeneration(
       model ?? chat.selected_model.name,
     );
     this.contextWindow.assertContentFits({ model: selectedModel, content });

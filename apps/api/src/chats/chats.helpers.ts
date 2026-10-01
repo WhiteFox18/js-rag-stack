@@ -36,6 +36,7 @@ export function toChatSummary(chat: ChatWithModel): ChatSummary {
     id: chat.id,
     title: chat.title,
     selectedModel: chat.selected_model.name,
+    selectedModelAvailable: chat.selected_model.is_available,
     archivedAt: chat.archived_at?.toISOString() ?? null,
     createdAt: chat.created_at.toISOString(),
     updatedAt: chat.updated_at.toISOString(),

@@ -7,12 +7,12 @@ import {
 } from '@nestjs/swagger';
 import type { ModelsResponse } from '@js-rag-stack/contracts';
 import { ModelsResponseDto } from './models/models-response.dto';
-import { OllamaService } from './ollama.service';
+import { ModelCatalogService } from './model-catalog.service';
 
 @ApiTags('models')
 @Controller('models')
 export class ModelsController {
-  constructor(private readonly ollama: OllamaService) {}
+  constructor(private readonly catalog: ModelCatalogService) {}
 
   @Get()
   @ApiOperation({
@@ -21,6 +21,6 @@ export class ModelsController {
   @ApiOkResponse({ type: ModelsResponseDto })
   @ApiServiceUnavailableResponse({ description: 'Ollama is unavailable' })
   async list(): Promise<ModelsResponse> {
-    return { models: await this.ollama.listModels() };
+    return { models: await this.catalog.listSelectable() };
   }
 }

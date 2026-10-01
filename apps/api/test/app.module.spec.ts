@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from '../src/app.module';
-import { ModelsRepository } from '../src/ollama/models.repository';
+import { ModelsRepository } from '../src/models/models.repository';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { RedisService } from '../src/redis/redis.service';
 
@@ -16,6 +16,7 @@ describe('AppModule', () => {
       .useValue({
         findByName: jest.fn().mockResolvedValue({ name: 'qwen2.5:1.5b' }),
         findAll: jest.fn().mockResolvedValue([]),
+        findDefault: jest.fn().mockResolvedValue({ name: 'qwen2.5:1.5b' }),
       })
       .compile();
     const app = moduleRef.createNestApplication();

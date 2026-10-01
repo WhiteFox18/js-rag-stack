@@ -45,6 +45,7 @@ export interface ChatSummary {
   id: string;
   title: string;
   selectedModel: string;
+  selectedModelAvailable: boolean;
   archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
