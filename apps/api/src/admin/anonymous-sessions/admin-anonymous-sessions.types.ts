@@ -1,6 +1,6 @@
 import type { AdminUserSort } from '@js-rag-stack/contracts';
 import type { PageRequest, UsageRange } from '../../usage/usage.types';
-import type { UsageAggregateColumns } from '../common/admin-list.sql';
+import type { UsageAggregateColumns } from '../../usage/usage-aggregate.sql';
 
 export interface ListAnonymousParams {
   sort: AdminUserSort;

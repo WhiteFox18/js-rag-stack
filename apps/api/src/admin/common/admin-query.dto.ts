@@ -6,12 +6,12 @@ import { MAX_PAGE_SIZE } from './admin-query.helpers';
 export class UsageRangeQueryDto {
   @ApiPropertyOptional({ format: 'date-time' })
   @IsOptional()
-  @IsISO8601()
+  @IsISO8601({ strict: true })
   from?: string;
 
   @ApiPropertyOptional({ format: 'date-time' })
   @IsOptional()
-  @IsISO8601()
+  @IsISO8601({ strict: true })
   to?: string;
 }
 

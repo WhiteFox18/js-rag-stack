@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type User } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { usageAggregateSql } from '../common/admin-list.sql';
+import { usageAggregateSql } from '../../usage/usage-aggregate.sql';
 import { escapeLike } from '../common/admin-query.helpers';
 import type { ListUsersParams, UserUsageRow } from './admin-users.types';
 
