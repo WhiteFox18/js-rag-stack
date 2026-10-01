@@ -24,7 +24,7 @@ Improve the chat SPA across four areas, delivered in phases:
 ### Non-goals
 
 - No backend, OpenAPI, or data-model changes.
-- No UI component library (PLAN.md constraint). Rendering libraries (`react-markdown`, `remark-gfm`, `shiki`) are allowed — approved by the user.
+- No UI component library ([original plan](../plans/2026-06-10-local-llm-chat-app.md) constraint). Rendering libraries (`react-markdown`, `remark-gfm`, `shiki`) are allowed — approved by the user.
 - No navigator on viewports narrower than `xl`.
 - Prompts in not-yet-loaded older pages are not listed until loaded.
 
