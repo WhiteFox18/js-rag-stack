@@ -16,13 +16,22 @@ export function shortId(id: string): string {
   return id.slice(0, 8);
 }
 
+// Date inputs are the admin's local calendar days, so bounds are local midnight.
+function localMidnight({
+  date,
+  dayOffset,
+}: {
+  date: string;
+  dayOffset: number;
+}) {
+  const [year = 0, month = 1, day = 1] = date.split('-').map(Number);
+  return new Date(year, month - 1, day + dayOffset);
+}
+
 export function toIsoStart(date: string): string | undefined {
-  return date ? new Date(`${date}T00:00:00.000Z`).toISOString() : undefined;
+  return date ? localMidnight({ date, dayOffset: 0 }).toISOString() : undefined;
 }
 
 export function toIsoEndExclusive(date: string): string | undefined {
-  if (!date) return undefined;
-  const end = new Date(`${date}T00:00:00.000Z`);
-  end.setUTCDate(end.getUTCDate() + 1);
-  return end.toISOString();
+  return date ? localMidnight({ date, dayOffset: 1 }).toISOString() : undefined;
 }

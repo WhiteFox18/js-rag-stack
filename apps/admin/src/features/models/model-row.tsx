@@ -2,6 +2,9 @@ import type { AdminModel, UpdateModelInput } from '@js-rag-stack/contracts';
 import { useRef, useState, type FormEvent } from 'react';
 import { formatNumber } from '../../lib/format';
 
+const MIN_CONTEXT = 512;
+const MAX_CONTEXT = 1_048_576;
+
 export function ModelRow({
   model,
   busy,
@@ -9,10 +12,21 @@ export function ModelRow({
 }: {
   model: AdminModel;
   busy: boolean;
-  onUpdate: (input: UpdateModelInput) => void;
+  onUpdate: (params: { input: UpdateModelInput; onError?: () => void }) => void;
 }) {
   const [context, setContext] = useState(String(model.maxContext));
   const lastSubmitted = useRef<number | null>(null);
+  const resetContext = () => {
+    lastSubmitted.current = null;
+    setContext(String(model.maxContext));
+  };
+
+  // Follow the server value after a refetch (adjust state during render).
+  const [seenMaxContext, setSeenMaxContext] = useState(model.maxContext);
+  if (seenMaxContext !== model.maxContext) {
+    setSeenMaxContext(model.maxContext);
+    setContext(String(model.maxContext));
+  }
   const installed =
     model.installed === null
       ? 'Unknown'
@@ -24,12 +38,17 @@ export function ModelRow({
     event.preventDefault();
     const value = Number(context);
     if (
-      Number.isInteger(value) &&
-      value !== model.maxContext &&
-      value !== lastSubmitted.current
+      context.trim() === '' ||
+      !Number.isInteger(value) ||
+      value < MIN_CONTEXT ||
+      value > MAX_CONTEXT
     ) {
+      resetContext();
+      return;
+    }
+    if (value !== model.maxContext && value !== lastSubmitted.current) {
       lastSubmitted.current = value;
-      onUpdate({ maxContext: value });
+      onUpdate({ input: { maxContext: value }, onError: resetContext });
     }
   };
 
@@ -41,8 +60,8 @@ export function ModelRow({
           <input
             type="number"
             title="Max context"
-            min={512}
-            max={1_048_576}
+            min={MIN_CONTEXT}
+            max={MAX_CONTEXT}
             step={512}
             value={context}
             onChange={(event) => {
@@ -69,7 +88,9 @@ export function ModelRow({
               ? 'The default model cannot be made unavailable.'
               : undefined
           }
-          onChange={(event) => onUpdate({ isAvailable: event.target.checked })}
+          onChange={(event) =>
+            onUpdate({ input: { isAvailable: event.target.checked } })
+          }
         />
       </td>
       <td className="px-3 py-2">
@@ -81,7 +102,7 @@ export function ModelRow({
           <button
             type="button"
             disabled={busy}
-            onClick={() => onUpdate({ isDefault: true })}
+            onClick={() => onUpdate({ input: { isDefault: true } })}
             className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface disabled:opacity-50"
           >
             Make default

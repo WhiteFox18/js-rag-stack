@@ -1,18 +1,30 @@
 import type { AdminUserSort } from '@js-rag-stack/contracts';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useId } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Pagination } from '../../components/pagination';
 import { RangeFilter } from '../../components/range-filter';
 import { api, toErrorMessage } from '../../lib/api';
 import { formatDateTime, formatNumber } from '../../lib/format';
 import { SORT_OPTIONS } from '../../lib/sort-options';
+import { useDebouncedValue } from '../../lib/use-debounced-value';
 import { useListState } from '../../lib/use-list-state';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 export function UsersPage() {
   const list = useListState();
   const sortId = useId();
   const search = list.param('search');
+  const [searchText, setSearchText] = useState(search);
+  const committedSearch = useDebouncedValue({
+    value: searchText,
+    delayMs: SEARCH_DEBOUNCE_MS,
+  });
+  const { setParam } = list;
+  useEffect(() => {
+    if (committedSearch !== search) setParam('search', committedSearch);
+  }, [committedSearch, search, setParam]);
   const sort = (list.param('sort') || 'lastActivity') as AdminUserSort;
   const query = {
     page: list.page,
@@ -34,8 +46,8 @@ export function UsersPage() {
           type="search"
           aria-label="Search users"
           placeholder="Search email or name"
-          value={search}
-          onChange={(event) => list.setParam('search', event.target.value)}
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
           className="w-full max-w-xs rounded-lg border border-border bg-bg px-3 py-1.5 text-sm"
         />
         <label htmlFor={sortId} className="text-sm text-fg-muted">
