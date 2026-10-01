@@ -17,6 +17,8 @@ function model(maxContext = 1000) {
     id: 'model-id',
     name: 'qwen2.5:1.5b',
     max_context: maxContext,
+    is_available: true,
+    is_default: true,
     created_at: now,
     updated_at: now,
   };

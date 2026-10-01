@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import type { ChatStreamEvent } from '@js-rag-stack/contracts';
 import { OllamaClientService } from '../src/ollama/ollama-client.service';
 import { OllamaError } from '../src/ollama/ollama.errors';
-import { OllamaService } from '../src/ollama/ollama.service';
 import type { OllamaChatChunk } from '../src/ollama/ollama.types';
 import {
   type AppEnvironment,
@@ -22,47 +21,6 @@ describe('phase 4 Ollama and SSE contracts', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-  });
-
-  it('lists installed models that have a model row, with their context size', async () => {
-    const client = {
-      listInstalledModels: jest
-        .fn()
-        .mockResolvedValue(['qwen2.5:1.5b', 'unapproved:latest']),
-    };
-    const models = {
-      findAll: jest
-        .fn()
-        .mockResolvedValue([
-          createModelRecord(),
-          createModelRecord('not-installed:1b', 4096),
-        ]),
-      findByName: jest.fn((name: string) =>
-        Promise.resolve(name === 'qwen2.5:1.5b' ? createModelRecord() : null),
-      ),
-    };
-    const service = new OllamaService(client as never, models as never, config);
-
-    await expect(service.listModels()).resolves.toEqual([
-      { name: 'qwen2.5:1.5b', default: true, maxContext: 8192 },
-    ]);
-    await expect(service.assertAllowed('qwen2.5:1.5b')).resolves.toEqual(
-      createModelRecord(),
-    );
-    await expect(service.assertAllowed('unapproved:latest')).rejects.toThrow(
-      OllamaError,
-    );
-  });
-
-  it('fails bootstrap when the default model has no model row', async () => {
-    const models = { findByName: jest.fn().mockResolvedValue(null) };
-    const service = new OllamaService({} as never, models as never, config);
-
-    await expect(service.onApplicationBootstrap()).rejects.toThrow(
-      'OLLAMA_DEFAULT_MODEL',
-    );
-    models.findByName.mockResolvedValue(createModelRecord());
-    await expect(service.onApplicationBootstrap()).resolves.toBeUndefined();
   });
 
   it('parses streamed NDJSON without exposing thinking fields', async () => {
@@ -207,7 +165,6 @@ describe('phase 4 Ollama and SSE contracts', () => {
       release: jest.fn().mockResolvedValue(true),
     };
     const ollama = {
-      assertAllowed: jest.fn().mockResolvedValue(createModelRecord()),
       streamChat: async function* () {
         await Promise.resolve();
         yield { delta: 'Hello ', done: false };
@@ -233,6 +190,9 @@ describe('phase 4 Ollama and SSE contracts', () => {
         acquireGenerationLock: jest.fn().mockResolvedValue(lock),
       } as never,
       ollama as never,
+      {
+        resolveForGeneration: jest.fn().mockResolvedValue(createModelRecord()),
+      } as never,
       contextWindow as never,
       config,
     );
@@ -298,8 +258,9 @@ describe('phase 4 Ollama and SSE contracts', () => {
       } as never,
       {} as never,
       locks as never,
+      {} as never,
       {
-        assertAllowed: jest.fn().mockResolvedValue(createModelRecord()),
+        resolveForGeneration: jest.fn().mockResolvedValue(createModelRecord()),
       } as never,
       {
         assertContentFits: jest.fn(() => {
@@ -367,13 +328,15 @@ describe('phase 4 Ollama and SSE contracts', () => {
         acquireGenerationLock: jest.fn().mockResolvedValue(lock),
       } as never,
       {
-        assertAllowed: jest.fn().mockResolvedValue(createModelRecord()),
         streamChat: async function* () {
           await Promise.resolve();
           yield { delta: 'partial', done: false };
           controller.abort();
           throw new Error('aborted');
         },
+      } as never,
+      {
+        resolveForGeneration: jest.fn().mockResolvedValue(createModelRecord()),
       } as never,
       contextWindow as never,
       config,
@@ -444,12 +407,14 @@ describe('phase 4 Ollama and SSE contracts', () => {
         acquireGenerationLock: jest.fn().mockResolvedValue(lock),
       } as never,
       {
-        assertAllowed: jest.fn().mockResolvedValue(createModelRecord()),
         // eslint-disable-next-line require-yield
         streamChat: async function* () {
           await Promise.resolve();
           throw new OllamaError('OLLAMA_UNAVAILABLE', 'Ollama is unavailable.');
         },
+      } as never,
+      {
+        resolveForGeneration: jest.fn().mockResolvedValue(createModelRecord()),
       } as never,
       contextWindow as never,
       config,
@@ -477,17 +442,51 @@ describe('phase 4 Ollama and SSE contracts', () => {
     });
   });
 
+  it('rejects streaming with a disabled model before locking', async () => {
+    const locks = {
+      acquirePrincipalGenerationLock: jest.fn(),
+      acquireGenerationLock: jest.fn(),
+    };
+    const service = new ChatStreamService(
+      {} as never,
+      {
+        findOwnedChat: jest.fn().mockResolvedValue(createChatRecord()),
+      } as never,
+      {} as never,
+      locks as never,
+      {} as never,
+      {
+        resolveForGeneration: jest
+          .fn()
+          .mockRejectedValue(
+            new OllamaError('MODEL_NOT_AVAILABLE', 'gone', 409),
+          ),
+      } as never,
+      { assertContentFits: jest.fn() } as never,
+      config,
+    );
+    await expect(
+      service.stream({
+        chatId: 'chat-id',
+        principal: { type: 'anonymous', anonymous_session_id: 'a' },
+        content: 'hi',
+        signal: new AbortController().signal,
+        emit: jest.fn(),
+      }),
+    ).rejects.toMatchObject({ code: 'MODEL_NOT_AVAILABLE' });
+    expect(locks.acquirePrincipalGenerationLock).not.toHaveBeenCalled();
+  });
+
   it('creates chats without contacting Ollama', async () => {
     const createChat = jest.fn().mockResolvedValue(createChatRecord());
-    const ollama = {
-      assertAllowed: jest.fn().mockResolvedValue(createModelRecord()),
-      assertAvailable: jest.fn(),
+    const catalog = {
+      resolveForGeneration: jest.fn().mockResolvedValue(createModelRecord()),
     };
     const service = new ChatsService(
       { createChat } as never,
       {} as never,
       {} as never,
-      ollama as never,
+      catalog as never,
       {} as never,
       config,
     );
@@ -498,8 +497,7 @@ describe('phase 4 Ollama and SSE contracts', () => {
       selectedModel: 'qwen2.5:1.5b',
     });
 
-    expect(ollama.assertAllowed).toHaveBeenCalledWith('qwen2.5:1.5b');
-    expect(ollama.assertAvailable).not.toHaveBeenCalled();
+    expect(catalog.resolveForGeneration).toHaveBeenCalledWith('qwen2.5:1.5b');
     expect(createChat).toHaveBeenCalledWith(
       expect.objectContaining({ selectedModelId: 'model-qwen2.5:1.5b' }),
     );
@@ -631,6 +629,8 @@ function createModelRecord(name = 'qwen2.5:1.5b', maxContext = 8192) {
     name,
     max_context: maxContext,
     created_at: now,
+    is_available: true,
+    is_default: true,
     updated_at: now,
   };
 }

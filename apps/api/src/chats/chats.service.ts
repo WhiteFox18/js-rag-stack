@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppEnvironment } from '../config/environment.schema';
-import { OllamaService } from '../ollama/ollama.service';
+import { ModelCatalogService } from '../models/model-catalog.service';
 import { ChatHistoryService } from './chat-history.service';
 import {
   deriveChatTitle,
@@ -33,7 +33,7 @@ export class ChatsService {
     private readonly repository: ChatsRepository,
     private readonly ownership: ChatOwnershipService,
     private readonly history: ChatHistoryService,
-    private readonly ollama: OllamaService,
+    private readonly catalog: ModelCatalogService,
     private readonly summaries: ConversationSummaryRepository,
     config: ConfigService<AppEnvironment, true>,
   ) {
@@ -49,7 +49,7 @@ export class ChatsService {
     ) {
       throw new PayloadTooLargeException('The first prompt is too long.');
     }
-    const model = await this.ollama.assertAllowed(params.selectedModel);
+    const model = await this.catalog.resolveForGeneration(params.selectedModel);
     const chat = await this.repository.createChat({
       principal: params.principal,
       firstPrompt: params.firstPrompt,
@@ -105,7 +105,7 @@ export class ChatsService {
 
     await this.ownership.findOwnedChat(params);
     const model = params.selectedModel
-      ? await this.ollama.assertAllowed(params.selectedModel)
+      ? await this.catalog.resolveForGeneration(params.selectedModel)
       : undefined;
     return toChatSummary(
       await this.repository.updateChat({

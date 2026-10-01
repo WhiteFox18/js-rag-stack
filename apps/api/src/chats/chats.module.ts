@@ -8,11 +8,12 @@ import { ConversationSummaryRepository } from './conversation-summary.repository
 import { ContextWindowService } from './context-window.service';
 import { ChatsService } from './chats.service';
 import { ChatStreamService } from './chat-stream.service';
+import { ModelsModule } from '../models/models.module';
 import { OllamaModule } from '../ollama/ollama.module';
 import { AnonymousSessionsModule } from '../anonymous-sessions/anonymous-sessions.module';
 
 @Module({
-  imports: [AnonymousSessionsModule, OllamaModule],
+  imports: [AnonymousSessionsModule, OllamaModule, ModelsModule],
   controllers: [ChatsController],
   providers: [
     ChatHistoryService,

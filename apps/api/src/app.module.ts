@@ -12,6 +12,7 @@ import { ChatsModule } from './chats/chats.module';
 import { CsrfGuard } from './common/guards/csrf.guard';
 import { OriginGuard } from './common/guards/origin.guard';
 import { SecurityModule } from './common/security/security.module';
+import { ModelsModule } from './models/models.module';
 import { OllamaModule } from './ollama/ollama.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
@@ -29,6 +30,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     AnonymousSessionsModule,
     AuthModule,
     OllamaModule,
+    ModelsModule,
     ChatsModule,
     HealthModule,
   ],

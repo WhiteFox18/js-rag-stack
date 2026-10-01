@@ -24,6 +24,7 @@ export function makeChat(overrides: Partial<ChatSummary> = {}): ChatSummary {
     id: 'c1',
     title: 'First chat',
     selectedModel: 'qwen2.5:1.5b',
+    selectedModelAvailable: true,
     archivedAt: null,
     createdAt: '2026-09-30T10:00:00.000Z',
     updatedAt: '2026-09-30T10:00:00.000Z',
