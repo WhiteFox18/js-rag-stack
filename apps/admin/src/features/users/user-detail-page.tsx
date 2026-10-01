@@ -12,6 +12,7 @@ export function UserDetailPage() {
   const detail = useQuery({
     queryKey: ['users', userId, list.rangeQuery],
     queryFn: () => api.getUser(userId, list.rangeQuery),
+    placeholderData: keepPreviousData,
   });
   const rows = useQuery({
     queryKey: ['users', userId, 'usage', list.page, list.rangeQuery],
@@ -44,6 +45,7 @@ export function UserDetailPage() {
             usage={detail.data.usage}
             breakdown={detail.data.breakdown}
             rows={rows.data}
+            rowsError={rows.isError ? rows.error : undefined}
             onPage={list.setPage}
           />
         </>

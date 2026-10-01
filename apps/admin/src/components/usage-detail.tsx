@@ -4,6 +4,7 @@ import type {
   UsageRow,
   UsageTotals,
 } from '@js-rag-stack/contracts';
+import { toErrorMessage } from '../lib/api';
 import { Pagination } from './pagination';
 import { UsageBreakdownTable } from './usage-breakdown-table';
 import { UsageLogTable } from './usage-log-table';
@@ -13,11 +14,13 @@ export function UsageDetailBody({
   usage,
   breakdown,
   rows,
+  rowsError,
   onPage,
 }: {
   usage: UsageTotals;
   breakdown: UsageBreakdownItem[];
   rows: Paginated<UsageRow> | undefined;
+  rowsError?: unknown;
   onPage: (page: number) => void;
 }) {
   return (
@@ -39,6 +42,10 @@ export function UsageDetailBody({
               onPage={onPage}
             />
           </>
+        ) : rowsError ? (
+          <p role="alert" className="text-sm text-danger">
+            {toErrorMessage(rowsError)}
+          </p>
         ) : (
           <p className="text-sm text-fg-muted">Loading…</p>
         )}
