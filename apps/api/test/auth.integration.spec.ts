@@ -11,6 +11,7 @@ import { AuthService } from '../src/auth/auth.service';
 import { ChatHistoryService } from '../src/chats/chat-history.service';
 import { ChatsRepository } from '../src/chats/chats.repository';
 import { RedisLockService } from '../src/chats/redis-lock.service';
+import { Argon2PasswordHasher } from '../src/common/security/password-hasher';
 import {
   type AppEnvironment,
   validateEnvironment,
@@ -60,6 +61,7 @@ describe('authentication sessions', () => {
       authCookies,
       anonymousSessions,
       history,
+      new Argon2PasswordHasher(),
       config,
     );
     await prisma.onModuleInit();
