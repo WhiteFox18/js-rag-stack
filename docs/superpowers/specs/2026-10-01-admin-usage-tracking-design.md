@@ -52,9 +52,9 @@ failed generations (Ollama reports no token counts for them).
 
 ### 3.1 `model` — new columns
 
-| column         | type    | notes          |
-| -------------- | ------- | -------------- |
-| `is_available` | BOOLEAN | default `true` |
+| column         | type    | notes           |
+| -------------- | ------- | --------------- |
+| `is_available` | BOOLEAN | default `true`  |
 | `is_default`   | BOOLEAN | default `false` |
 
 - `CREATE UNIQUE INDEX model_single_default ON model (is_default) WHERE is_default;`
@@ -67,17 +67,17 @@ failed generations (Ollama reports no token counts for them).
 
 ### 3.2 `usage_log` — new
 
-| column                 | type                     | notes                          |
-| ---------------------- | ------------------------ | ------------------------------ |
-| `id`                   | UUID v7                  | PK                             |
-| `user_id`              | UUID?                    | FK user, `ON DELETE SET NULL`  |
-| `anonymous_session_id` | UUID?                    | FK anonymous_session, SET NULL |
-| `chat_id`              | UUID?                    | FK chat, `ON DELETE SET NULL`  |
-| `model_id`             | UUID                     | FK model, `RESTRICT`           |
-| `kind`                 | enum `UsageKind`         | `CHAT` \| `SUMMARY`            |
-| `input_tokens`         | INT                      | `>= 0`                         |
-| `output_tokens`        | INT                      | `>= 0`                         |
-| `created_at`           | TIMESTAMPTZ(3)           | default now                    |
+| column                 | type             | notes                          |
+| ---------------------- | ---------------- | ------------------------------ |
+| `id`                   | UUID v7          | PK                             |
+| `user_id`              | UUID?            | FK user, `ON DELETE SET NULL`  |
+| `anonymous_session_id` | UUID?            | FK anonymous_session, SET NULL |
+| `chat_id`              | UUID?            | FK chat, `ON DELETE SET NULL`  |
+| `model_id`             | UUID             | FK model, `RESTRICT`           |
+| `kind`                 | enum `UsageKind` | `CHAT` \| `SUMMARY`            |
+| `input_tokens`         | INT              | `>= 0`                         |
+| `output_tokens`        | INT              | `>= 0`                         |
+| `created_at`           | TIMESTAMPTZ(3)   | default now                    |
 
 - No check constraint on owner columns (SET NULL can null both after deletes);
   the application always writes exactly one owner.
@@ -174,7 +174,7 @@ removed.
 ### 4.2 Usage recording
 
 - `UsageRecorderService.record({ principal, chatId, modelId, kind, inputTokens,
-  outputTokens })` maps the principal to `user_id` or `anonymous_session_id`.
+outputTokens })` maps the principal to `user_id` or `anonymous_session_id`.
 - `ChatStreamService`: after `completeGeneration`, record `kind=CHAT` with the
   final chunk's `promptTokens` / `completionTokens`.
 - `ContextWindowService.summarize`: after a successful (non-degenerate)
@@ -213,22 +213,22 @@ Pagination is offset-based for admin lists: `page` (≥1, default 1),
 Date filters `from` / `to` (ISO dates, optional) apply to usage aggregates and
 log rows; `to` is exclusive.
 
-| Method | Path                                      | Purpose |
-| ------ | ----------------------------------------- | ------- |
-| GET    | `/admin/auth/csrf`                        | CSRF token |
-| POST   | `/admin/auth/sign-in`                     | `{ email, password }` → `{ admin }`, sets cookies |
-| POST   | `/admin/auth/refresh`                     | rotate tokens |
-| POST   | `/admin/auth/sign-out`                    | revoke session, clear cookies |
-| GET    | `/admin/auth/me`                          | `{ admin }` |
-| GET    | `/admin/users`                            | `search` (email/name, case-insensitive), `sort` (`lastActivity` \| `totalTokens` \| `createdAt`, default `lastActivity`), `from`, `to`, page params |
-| GET    | `/admin/users/:id`                        | user profile + totals + per-model breakdown (`from`/`to`) |
-| GET    | `/admin/users/:id/usage`                  | paginated usage rows, newest first |
-| GET    | `/admin/anonymous-sessions`               | same as users minus `search`; includes `createdAt`, `lastSeenAt`, `expiresAt` |
-| GET    | `/admin/anonymous-sessions/:id`           | session + totals + breakdown |
-| GET    | `/admin/anonymous-sessions/:id/usage`     | paginated usage rows |
-| GET    | `/admin/models`                           | all models + `installed` flag (Ollama down → `installed: null`) |
-| POST   | `/admin/models`                           | `{ name, maxContext, isAvailable? }`; 409 on duplicate name |
-| PATCH  | `/admin/models/:id`                       | `{ maxContext?, isAvailable?, isDefault? }` |
+| Method | Path                                  | Purpose                                                                                                                                             |
+| ------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/admin/auth/csrf`                    | CSRF token                                                                                                                                          |
+| POST   | `/admin/auth/sign-in`                 | `{ email, password }` → `{ admin }`, sets cookies                                                                                                   |
+| POST   | `/admin/auth/refresh`                 | rotate tokens                                                                                                                                       |
+| POST   | `/admin/auth/sign-out`                | revoke session, clear cookies                                                                                                                       |
+| GET    | `/admin/auth/me`                      | `{ admin }`                                                                                                                                         |
+| GET    | `/admin/users`                        | `search` (email/name, case-insensitive), `sort` (`lastActivity` \| `totalTokens` \| `createdAt`, default `lastActivity`), `from`, `to`, page params |
+| GET    | `/admin/users/:id`                    | user profile + totals + per-model breakdown (`from`/`to`)                                                                                           |
+| GET    | `/admin/users/:id/usage`              | paginated usage rows, newest first                                                                                                                  |
+| GET    | `/admin/anonymous-sessions`           | same as users minus `search`; includes `createdAt`, `lastSeenAt`, `expiresAt`                                                                       |
+| GET    | `/admin/anonymous-sessions/:id`       | session + totals + breakdown                                                                                                                        |
+| GET    | `/admin/anonymous-sessions/:id/usage` | paginated usage rows                                                                                                                                |
+| GET    | `/admin/models`                       | all models + `installed` flag (Ollama down → `installed: null`)                                                                                     |
+| POST   | `/admin/models`                       | `{ name, maxContext, isAvailable? }`; 409 on duplicate name                                                                                         |
+| PATCH  | `/admin/models/:id`                   | `{ maxContext?, isAvailable?, isDefault? }`                                                                                                         |
 
 Totals shape: `{ requests, inputTokens, outputTokens, totalTokens,
 lastActivityAt | null }`. Breakdown: `[{ model, kind, requests, inputTokens,

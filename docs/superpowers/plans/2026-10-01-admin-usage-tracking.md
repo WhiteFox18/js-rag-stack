@@ -69,81 +69,83 @@ Root: `package.json` (`admin` script), `.env.example`, `README.md`.
 ### Task 1: Schema & migration
 
 **Files:**
+
 - Modify: `apps/api/prisma/schema.prisma`
 - Create: `apps/api/prisma/migrations/20261001120000_usage_log_admin_and_model_flags/migration.sql`
 - Test: `apps/api/test/persistence.integration.spec.ts` (append cases)
 
 **Interfaces:**
+
 - Produces: Prisma models `UsageLog` (`prisma.usageLog`), `Admin` (`prisma.admin`), `AdminSession` (`prisma.adminSession`), enum `UsageKind`, `Model.is_available`, `Model.is_default`, relations `User.usage_logs`, `AnonymousSession.usage_logs`, `Chat.usage_logs`, `Model.usage_logs`.
 
 - [ ] **Step 1: Write failing persistence tests** — append inside the `describe('persistence foundation')` block of `apps/api/test/persistence.integration.spec.ts`:
 
 ```ts
-  it('allows only one default model and never an unavailable default', async () => {
-    const name = `test-model-${randomBytes(4).toString('hex')}`;
-    const extra = await prisma.model.create({
-      data: { name, max_context: 4096 },
-    });
-    try {
-      await expect(
-        prisma.model.update({
-          where: { id: extra.id },
-          data: { is_default: true },
-        }),
-      ).rejects.toThrow();
-      await expect(
-        prisma.model.update({
-          where: { id: model_id },
-          data: { is_available: false },
-        }),
-      ).rejects.toThrow();
-    } finally {
-      await prisma.model.delete({ where: { id: extra.id } });
-    }
+it('allows only one default model and never an unavailable default', async () => {
+  const name = `test-model-${randomBytes(4).toString('hex')}`;
+  const extra = await prisma.model.create({
+    data: { name, max_context: 4096 },
   });
-
-  it('keeps usage rows when their chat is deleted', async () => {
-    const session = await createAnonymousSession();
-    const chat = await prisma.chat.create({
-      data: {
-        anonymous_session_id: session.id,
-        title: 'Usage keep',
-        selected_model_id: model_id,
-      },
-    });
-    const row = await prisma.usageLog.create({
-      data: {
-        anonymous_session_id: session.id,
-        chat_id: chat.id,
-        model_id,
-        kind: 'CHAT',
-        input_tokens: 10,
-        output_tokens: 5,
-      },
-    });
-    await prisma.chat.delete({ where: { id: chat.id } });
-    const kept = await prisma.usageLog.findUniqueOrThrow({
-      where: { id: row.id },
-    });
-    expect(kept.chat_id).toBeNull();
-    expect(kept.anonymous_session_id).toBe(session.id);
-    await prisma.usageLog.delete({ where: { id: row.id } });
-  });
-
-  it('rejects negative token counts', async () => {
-    const session = await createAnonymousSession();
+  try {
     await expect(
-      prisma.usageLog.create({
-        data: {
-          anonymous_session_id: session.id,
-          model_id,
-          kind: 'SUMMARY',
-          input_tokens: -1,
-          output_tokens: 0,
-        },
+      prisma.model.update({
+        where: { id: extra.id },
+        data: { is_default: true },
       }),
     ).rejects.toThrow();
+    await expect(
+      prisma.model.update({
+        where: { id: model_id },
+        data: { is_available: false },
+      }),
+    ).rejects.toThrow();
+  } finally {
+    await prisma.model.delete({ where: { id: extra.id } });
+  }
+});
+
+it('keeps usage rows when their chat is deleted', async () => {
+  const session = await createAnonymousSession();
+  const chat = await prisma.chat.create({
+    data: {
+      anonymous_session_id: session.id,
+      title: 'Usage keep',
+      selected_model_id: model_id,
+    },
   });
+  const row = await prisma.usageLog.create({
+    data: {
+      anonymous_session_id: session.id,
+      chat_id: chat.id,
+      model_id,
+      kind: 'CHAT',
+      input_tokens: 10,
+      output_tokens: 5,
+    },
+  });
+  await prisma.chat.delete({ where: { id: chat.id } });
+  const kept = await prisma.usageLog.findUniqueOrThrow({
+    where: { id: row.id },
+  });
+  expect(kept.chat_id).toBeNull();
+  expect(kept.anonymous_session_id).toBe(session.id);
+  await prisma.usageLog.delete({ where: { id: row.id } });
+});
+
+it('rejects negative token counts', async () => {
+  const session = await createAnonymousSession();
+  await expect(
+    prisma.usageLog.create({
+      data: {
+        anonymous_session_id: session.id,
+        model_id,
+        kind: 'SUMMARY',
+        input_tokens: -1,
+        output_tokens: 0,
+      },
+    }),
+  ).rejects.toThrow();
+});
 ```
 
 (The qwen row is the seeded default — the migration in Step 3 makes it so. `model_id` already holds its id.)
@@ -340,11 +342,13 @@ git commit -m "feat(api): add usage_log, admin tables and model availability fla
 ### Task 2: `PasswordHasher` abstraction
 
 **Files:**
+
 - Create: `apps/api/src/common/security/password-hasher.ts`
 - Modify: `apps/api/src/common/security/security.module.ts`, `apps/api/src/auth/auth.service.ts`
 - Test: `apps/api/test/security.spec.ts` (append), `apps/api/test/auth.integration.spec.ts` (constructor update)
 
 **Interfaces:**
+
 - Produces: `abstract class PasswordHasher { hash(plain: string): Promise<string>; verify(params: { hash: string; plain: string }): Promise<boolean> }`, `class Argon2PasswordHasher extends PasswordHasher`, provided globally as `{ provide: PasswordHasher, useClass: Argon2PasswordHasher }`.
 
 - [ ] **Step 1: Failing test** — append to `apps/api/test/security.spec.ts`:
@@ -443,12 +447,14 @@ git commit -m "refactor(api): extract PasswordHasher abstraction"
 ### Task 3: `ModelsModule` — catalog, seeding, public `/models`, unavailable models blocked
 
 **Files:**
+
 - Create: `apps/api/src/models/models.module.ts`, `models.repository.ts`, `model-catalog.service.ts`, `model-default.seeder.ts`, `models.controller.ts`, `models.types.ts`, `models/models-response.dto.ts`
 - Delete: `apps/api/src/ollama/models.repository.ts`, `apps/api/src/ollama/models.controller.ts`, `apps/api/src/ollama/models/models-response.dto.ts`
 - Modify: `apps/api/src/ollama/ollama.module.ts`, `ollama.service.ts`, `ollama.types.ts` (drop `OllamaModel` if now unused), `apps/api/src/chats/chats.module.ts`, `chats.service.ts`, `chat-stream.service.ts`, `chats.helpers.ts`, `models/chat-response.dto.ts`, `apps/api/src/app.module.ts`, `packages/contracts/src/index.ts`
 - Test: create `apps/api/test/models.integration.spec.ts`; modify `apps/api/test/phase4.spec.ts`, `apps/api/test/app.module.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `OllamaService.listInstalledModels(): Promise<string[]>` (renamed passthrough, see Step 3).
 - Produces:
   - `ModelsRepository` (internal to ModelsModule): `findAll(): Promise<Model[]>`, `findByName(name: string): Promise<Model | null>`, `findById(id: string): Promise<Model | null>`, `findDefault(): Promise<Model | null>`, `create(data: CreateModelRecord): Promise<Model>`, `update(params: { id: string; data: UpdateModelRecord }): Promise<Model>`, `setDefault(id: string): Promise<Model>`, `seedDefault(params: { name: string; maxContext: number }): Promise<Model>`.
@@ -531,12 +537,18 @@ describe('model catalog', () => {
     const qwen = (await catalog().listSelectable()).find(
       (m) => m.name === 'qwen2.5:1.5b',
     );
-    expect(qwen).toEqual({ name: 'qwen2.5:1.5b', default: true, maxContext: expect.any(Number) as number });
+    expect(qwen).toEqual({
+      name: 'qwen2.5:1.5b',
+      default: true,
+      maxContext: expect.any(Number) as number,
+    });
   });
 
   it('rejects unknown and disabled models for generation', async () => {
     const disabled = await createModel({ is_available: false });
-    await expect(catalog().resolveForGeneration('nope:1b')).rejects.toMatchObject({
+    await expect(
+      catalog().resolveForGeneration('nope:1b'),
+    ).rejects.toMatchObject({
       code: 'MODEL_NOT_ALLOWED',
       status: 400,
     });
@@ -550,7 +562,9 @@ describe('model catalog', () => {
   it('seeds the env default only when no default exists', async () => {
     const seeder = new ModelDefaultSeeder(repository, config);
     await seeder.onApplicationBootstrap();
-    const defaults = await prisma.model.findMany({ where: { is_default: true } });
+    const defaults = await prisma.model.findMany({
+      where: { is_default: true },
+    });
     expect(defaults).toHaveLength(1);
     expect(defaults[0]?.name).toBe('qwen2.5:1.5b');
   });
@@ -641,7 +655,10 @@ export class ModelsRepository {
     });
   }
 
-  async seedDefault({ name, maxContext }: SeedDefaultModelParams): Promise<Model> {
+  async seedDefault({
+    name,
+    maxContext,
+  }: SeedDefaultModelParams): Promise<Model> {
     const model = await this.prisma.model.upsert({
       where: { name },
       create: { name, max_context: maxContext },
@@ -815,37 +832,40 @@ Contracts — in `packages/contracts/src/index.ts` add to `ChatSummary`: `select
   - Add a phase4 test that a stream with a disabled model fails before any lock is taken:
 
 ```ts
-  it('rejects streaming with a disabled model before locking', async () => {
-    const locks = { acquirePrincipalGenerationLock: jest.fn(), acquireGenerationLock: jest.fn() };
-    const service = new ChatStreamService(
-      {} as never,
-      { findOwnedChat: jest.fn().mockResolvedValue(createChatRecord()) } as never,
-      {} as never,
-      locks as never,
-      {} as never,
-      {
-        resolveForGeneration: jest.fn().mockRejectedValue(
-          new OllamaError('MODEL_NOT_AVAILABLE', 'gone', 409),
-        ),
-      } as never,
-      { assertContentFits: jest.fn() } as never,
-      {} as never,
-      config,
-    );
-    await expect(
-      service.stream({
-        chatId: 'chat-id',
-        principal: { type: 'anonymous', anonymous_session_id: 'a' },
-        content: 'hi',
-        signal: new AbortController().signal,
-        emit: jest.fn(),
-      }),
-    ).rejects.toMatchObject({ code: 'MODEL_NOT_AVAILABLE' });
-    expect(locks.acquirePrincipalGenerationLock).not.toHaveBeenCalled();
-  });
+it('rejects streaming with a disabled model before locking', async () => {
+  const locks = {
+    acquirePrincipalGenerationLock: jest.fn(),
+    acquireGenerationLock: jest.fn(),
+  };
+  const service = new ChatStreamService(
+    {} as never,
+    { findOwnedChat: jest.fn().mockResolvedValue(createChatRecord()) } as never,
+    {} as never,
+    locks as never,
+    {} as never,
+    {
+      resolveForGeneration: jest
+        .fn()
+        .mockRejectedValue(new OllamaError('MODEL_NOT_AVAILABLE', 'gone', 409)),
+    } as never,
+    { assertContentFits: jest.fn() } as never,
+    {} as never,
+    config,
+  );
+  await expect(
+    service.stream({
+      chatId: 'chat-id',
+      principal: { type: 'anonymous', anonymous_session_id: 'a' },
+      content: 'hi',
+      signal: new AbortController().signal,
+      emit: jest.fn(),
+    }),
+  ).rejects.toMatchObject({ code: 'MODEL_NOT_AVAILABLE' });
+  expect(locks.acquirePrincipalGenerationLock).not.toHaveBeenCalled();
+});
 ```
 
-  Use the file's existing chat-record helper (look for how other ChatStreamService tests build `findOwnedChat`'s return; reuse it instead of `createChatRecord` if named differently). The constructor argument order is: `repository, ownership, history, locks, ollama, catalog, contextWindow, usage, config` — `usage` is added in Task 4; **in this task omit the `{} as never` usage slot** (8 args) and Task 4 adds it.
+Use the file's existing chat-record helper (look for how other ChatStreamService tests build `findOwnedChat`'s return; reuse it instead of `createChatRecord` if named differently). The constructor argument order is: `repository, ownership, history, locks, ollama, catalog, contextWindow, usage, config` — `usage` is added in Task 4; **in this task omit the `{} as never` usage slot** (8 args) and Task 4 adds it.
 
 - [ ] **Step 5: Run** `pnpm --filter @js-rag-stack/api exec jest && pnpm --filter @js-rag-stack/api typecheck && pnpm --filter @js-rag-stack/web typecheck` — Expected: PASS. (Web typecheck may fail where fixtures build `ChatSummary`; add `selectedModelAvailable: true` to `makeChat` in `apps/web/src/test/fixtures.ts`.)
 
@@ -861,11 +881,13 @@ git commit -m "refactor(api): extract ModelsModule with DB default and availabil
 ### Task 4: `UsageModule` — recording and anonymous transfer
 
 **Files:**
+
 - Create: `apps/api/src/usage/usage.module.ts`, `usage.repository.ts`, `usage-recorder.service.ts`, `usage-transfer.service.ts`, `usage.types.ts`, `usage.helpers.ts`
 - Modify: `apps/api/src/chats/chats.module.ts`, `chat-stream.service.ts`, `context-window.service.ts`, `chats.types.ts`; `apps/api/src/auth/auth.module.ts`, `auth.repository.ts`, `auth.types.ts`; `apps/api/src/app.module.ts`
 - Test: create `apps/api/test/usage.integration.spec.ts`; modify `test/phase4.spec.ts`, `test/context-window.service.spec.ts`, `test/auth.integration.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `RequestPrincipal`, Prisma `UsageKind`, `Prisma.TransactionClient`.
 - Produces:
   - `type UsageOwner = { type: 'user'; id: string } | { type: 'anonymous'; id: string }` (in `usage.types.ts`)
@@ -995,13 +1017,18 @@ describe('usage recording', () => {
       ['CHAT', 100, 20],
       ['SUMMARY', 50, 0],
     ]);
-    await prisma.anonymousSession.delete({ where: { id: principal.anonymous_session_id } });
+    await prisma.anonymousSession.delete({
+      where: { id: principal.anonymous_session_id },
+    });
   });
 
   it('never throws when the write fails', async () => {
     await expect(
       recorder.record({
-        principal: { type: 'anonymous', anonymous_session_id: '00000000-0000-7000-8000-000000000000' },
+        principal: {
+          type: 'anonymous',
+          anonymous_session_id: '00000000-0000-7000-8000-000000000000',
+        },
         chatId: null,
         modelId: model_id,
         kind: 'CHAT',
@@ -1023,7 +1050,9 @@ describe('usage recording', () => {
       response: response(),
     });
     userIds.push(user.id);
-    const rows = await prisma.usageLog.findMany({ where: { user_id: user.id } });
+    const rows = await prisma.usageLog.findMany({
+      where: { user_id: user.id },
+    });
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.anonymous_session_id === null)).toBe(true);
   });
@@ -1043,7 +1072,9 @@ describe('usage recording', () => {
       request: request(),
       response: response(),
     });
-    expect(await prisma.usageLog.count({ where: { user_id: user.id } })).toBe(2);
+    expect(await prisma.usageLog.count({ where: { user_id: user.id } })).toBe(
+      2,
+    );
   });
 });
 ```
@@ -1219,60 +1250,61 @@ export class UsageModule {}
 **Auth wiring:** `auth.module.ts` imports `UsageModule`. `AuthRepository` constructor becomes `constructor(private readonly prisma: PrismaService, private readonly usageTransfer: UsageTransferService) {}`. In `transferAnonymousChats`, insert **before** `transaction.anonymousSession.deleteMany(...)`:
 
 ```ts
-    // Must run before the session row is deleted: usage FKs are SET NULL.
-    await this.usageTransfer.reassignAnonymousUsage({
-      transaction,
-      anonymousSessionId,
-      userId,
-    });
+// Must run before the session row is deleted: usage FKs are SET NULL.
+await this.usageTransfer.reassignAnonymousUsage({
+  transaction,
+  anonymousSessionId,
+  userId,
+});
 ```
 
 Update `test/auth.integration.spec.ts`: `new AuthRepository(prisma, new UsageTransferService(new UsageRepository(prisma)))`.
 
-**Chats wiring:** `chats.module.ts` imports `UsageModule`. In `chats.types.ts` add `principal: RequestPrincipal;` to `BuildPromptParams` and `SummarizeParams` (both interfaces live in that file — search for them). 
+**Chats wiring:** `chats.module.ts` imports `UsageModule`. In `chats.types.ts` add `principal: RequestPrincipal;` to `BuildPromptParams` and `SummarizeParams` (both interfaces live in that file — search for them).
 
 `chat-stream.service.ts`: add constructor param `private readonly usage: UsageRecorderService` after `contextWindow`; pass `principal` into `this.contextWindow.buildPrompt({ … principal, … })`; right after `const completed = await this.repository.completeGeneration({...});` add:
 
 ```ts
-      await this.usage.record({
-        principal,
-        chatId,
-        modelId: selectedModel.id,
-        kind: 'CHAT',
-        inputTokens: finalChunk.promptTokens,
-        outputTokens: finalChunk.completionTokens,
-      });
+await this.usage.record({
+  principal,
+  chatId,
+  modelId: selectedModel.id,
+  kind: 'CHAT',
+  inputTokens: finalChunk.promptTokens,
+  outputTokens: finalChunk.completionTokens,
+});
 ```
 
 `context-window.service.ts`: add constructor param `private readonly usage: UsageRecorderService` after `ollama`; destructure `principal` in `buildPrompt` and pass it to `this.summarize({ … principal })`; in `summarize`, immediately after the `this.ollama.complete(...)` call resolves (before the degenerate check — the tokens were spent either way), add:
 
 ```ts
-      await this.usage.record({
-        principal,
-        chatId,
-        modelId: model.id,
-        kind: 'SUMMARY',
-        inputTokens: result.promptTokens,
-        outputTokens: result.completionTokens,
-      });
+await this.usage.record({
+  principal,
+  chatId,
+  modelId: model.id,
+  kind: 'SUMMARY',
+  inputTokens: result.promptTokens,
+  outputTokens: result.completionTokens,
+});
 ```
 
 - [ ] **Step 4: Update unit tests.**
   - `test/phase4.spec.ts`: every `new ChatStreamService(` gets `usage` after `contextWindow` and before `config`: `{ record: jest.fn().mockResolvedValue(undefined) } as never`. Every `buildPrompt` expectation that matched exact params now includes `principal`. In the existing "completes a stream" test (the one that asserts `completeGeneration`), assert:
 
 ```ts
-    expect(usage.record).toHaveBeenCalledWith({
-      principal,
-      chatId: 'chat-id',
-      modelId: createModelRecord().id,
-      kind: 'CHAT',
-      inputTokens: expect.any(Number) as number,
-      outputTokens: expect.any(Number) as number,
-    });
+expect(usage.record).toHaveBeenCalledWith({
+  principal,
+  chatId: 'chat-id',
+  modelId: createModelRecord().id,
+  kind: 'CHAT',
+  inputTokens: expect.any(Number) as number,
+  outputTokens: expect.any(Number) as number,
+});
 ```
 
-  (bind the mock to a `const usage = { record: jest.fn() }` and use the test's actual principal/chat id variables.) In the cancelled-stream test assert `expect(usage.record).not.toHaveBeenCalled()`.
-  - `test/context-window.service.spec.ts`: `new ContextWindowService(` gets `usage` after the ollama mock; `buildPrompt` calls pass `principal: { type: 'anonymous', anonymous_session_id: 'anon' }`. Add to the test that summarizes a large backlog in chunks: `expect(usage.record).toHaveBeenCalledTimes(<number of ollama.complete calls>)` with `kind: 'SUMMARY'` — use `ollama.complete.mock.calls.length` for the count.
+(bind the mock to a `const usage = { record: jest.fn() }` and use the test's actual principal/chat id variables.) In the cancelled-stream test assert `expect(usage.record).not.toHaveBeenCalled()`.
+
+- `test/context-window.service.spec.ts`: `new ContextWindowService(` gets `usage` after the ollama mock; `buildPrompt` calls pass `principal: { type: 'anonymous', anonymous_session_id: 'anon' }`. Add to the test that summarizes a large backlog in chunks: `expect(usage.record).toHaveBeenCalledTimes(<number of ollama.complete calls>)` with `kind: 'SUMMARY'` — use `ollama.complete.mock.calls.length` for the count.
 
 - [ ] **Step 5: Run** `pnpm --filter @js-rag-stack/api exec jest && pnpm --filter @js-rag-stack/api typecheck` — Expected: PASS.
 
@@ -1284,14 +1316,17 @@ git commit -m "feat(api): record per-call token usage and transfer it on sign-up
 ```
 
 ---
+
 ### Task 5: `ModelAdministrationService` — create / edit / availability / default rules
 
 **Files:**
+
 - Create: `apps/api/src/models/model-administration.service.ts`, `apps/api/src/models/models.helpers.ts`
 - Modify: `apps/api/src/models/models.module.ts`, `apps/api/src/models/models.types.ts`, `apps/api/src/common/utils/error.ts`, `apps/api/src/auth/auth.helpers.ts` (+ its importers), `packages/contracts/src/index.ts`
 - Test: `apps/api/test/models.integration.spec.ts` (append)
 
 **Interfaces:**
+
 - Consumes: `ModelsRepository` (Task 3), `OllamaService.listInstalledModels()`.
 - Produces:
   - contracts: `interface AdminModel { id: string; name: string; maxContext: number; isAvailable: boolean; isDefault: boolean; installed: boolean | null; createdAt: string; updatedAt: string }`, `interface AdminModelsResponse { models: AdminModel[] }`, `interface CreateModelInput { name: string; maxContext: number; isAvailable?: boolean }`, `interface UpdateModelInput { maxContext?: number; isAvailable?: boolean; isDefault?: boolean }`.
@@ -1302,101 +1337,99 @@ git commit -m "feat(api): record per-call token usage and transfer it on sign-up
 - [ ] **Step 1: Failing tests** — append to `apps/api/test/models.integration.spec.ts` (inside the describe; add `import { ModelAdministrationService } from '../src/models/model-administration.service';` and `import { ConflictException, NotFoundException } from '@nestjs/common';`):
 
 ```ts
-  describe('administration', () => {
-    function admin(installedNames: string[] | Error = ['qwen2.5:1.5b']) {
-      return new ModelAdministrationService(repository, {
-        listInstalledModels: () =>
-          installedNames instanceof Error
-            ? Promise.reject(installedNames)
-            : Promise.resolve(installedNames),
-      } as never);
-    }
+describe('administration', () => {
+  function admin(installedNames: string[] | Error = ['qwen2.5:1.5b']) {
+    return new ModelAdministrationService(repository, {
+      listInstalledModels: () =>
+        installedNames instanceof Error
+          ? Promise.reject(installedNames)
+          : Promise.resolve(installedNames),
+    } as never);
+  }
 
-    async function restoreQwenDefault() {
-      const qwen = await prisma.model.findUniqueOrThrow({
-        where: { name: 'qwen2.5:1.5b' },
-      });
-      await repository.setDefault(qwen.id);
-    }
-
-    afterEach(restoreQwenDefault);
-
-    it('creates a model, trimming the name, and rejects duplicates', async () => {
-      const name = `  test-${randomBytes(4).toString('hex')}  `;
-      const model = await admin().create({ name, maxContext: 2048 });
-      created.push(model.id);
-      expect(model).toMatchObject({
-        name: name.trim(),
-        maxContext: 2048,
-        isAvailable: true,
-        isDefault: false,
-        installed: false,
-      });
-      await expect(
-        admin().create({ name: name.trim(), maxContext: 2048 }),
-      ).rejects.toBeInstanceOf(ConflictException);
+  async function restoreQwenDefault() {
+    const qwen = await prisma.model.findUniqueOrThrow({
+      where: { name: 'qwen2.5:1.5b' },
     });
+    await repository.setDefault(qwen.id);
+  }
 
-    it('reports installed as null when Ollama is down', async () => {
-      const models = await admin(new Error('down')).listAll();
-      expect(models.every((m) => m.installed === null)).toBe(true);
-    });
+  afterEach(restoreQwenDefault);
 
-    it('switches the default atomically', async () => {
-      const next = await createModel();
-      const updated = await admin().update({
-        id: next.id,
-        input: { isDefault: true },
-      });
-      expect(updated.isDefault).toBe(true);
-      expect(
-        await prisma.model.count({ where: { is_default: true } }),
-      ).toBe(1);
+  it('creates a model, trimming the name, and rejects duplicates', async () => {
+    const name = `  test-${randomBytes(4).toString('hex')}  `;
+    const model = await admin().create({ name, maxContext: 2048 });
+    created.push(model.id);
+    expect(model).toMatchObject({
+      name: name.trim(),
+      maxContext: 2048,
+      isAvailable: true,
+      isDefault: false,
+      installed: false,
     });
-
-    it('refuses to unset or disable the default', async () => {
-      const qwen = await prisma.model.findUniqueOrThrow({
-        where: { name: 'qwen2.5:1.5b' },
-      });
-      await expect(
-        admin().update({ id: qwen.id, input: { isDefault: false } }),
-      ).rejects.toThrow('Choose another default model first.');
-      await expect(
-        admin().update({ id: qwen.id, input: { isAvailable: false } }),
-      ).rejects.toThrow('The default model cannot be made unavailable.');
-      const after = await prisma.model.findUniqueOrThrow({
-        where: { id: qwen.id },
-      });
-      expect(after).toMatchObject({ is_default: true, is_available: true });
-    });
-
-    it('requires availability before making a disabled model default', async () => {
-      const disabled = await createModel({ is_available: false });
-      await expect(
-        admin().update({ id: disabled.id, input: { isDefault: true } }),
-      ).rejects.toBeInstanceOf(ConflictException);
-      const ok = await admin().update({
-        id: disabled.id,
-        input: { isDefault: true, isAvailable: true },
-      });
-      expect(ok).toMatchObject({ isDefault: true, isAvailable: true });
-    });
-
-    it('edits max context and availability; 404 for unknown ids', async () => {
-      const model = await createModel();
-      const updated = await admin().update({
-        id: model.id,
-        input: { maxContext: 16384, isAvailable: false },
-      });
-      expect(updated).toMatchObject({ maxContext: 16384, isAvailable: false });
-      await expect(
-        admin().update({
-          id: '00000000-0000-7000-8000-000000000000',
-          input: { maxContext: 1024 },
-        }),
-      ).rejects.toBeInstanceOf(NotFoundException);
-    });
+    await expect(
+      admin().create({ name: name.trim(), maxContext: 2048 }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
+
+  it('reports installed as null when Ollama is down', async () => {
+    const models = await admin(new Error('down')).listAll();
+    expect(models.every((m) => m.installed === null)).toBe(true);
+  });
+
+  it('switches the default atomically', async () => {
+    const next = await createModel();
+    const updated = await admin().update({
+      id: next.id,
+      input: { isDefault: true },
+    });
+    expect(updated.isDefault).toBe(true);
+    expect(await prisma.model.count({ where: { is_default: true } })).toBe(1);
+  });
+
+  it('refuses to unset or disable the default', async () => {
+    const qwen = await prisma.model.findUniqueOrThrow({
+      where: { name: 'qwen2.5:1.5b' },
+    });
+    await expect(
+      admin().update({ id: qwen.id, input: { isDefault: false } }),
+    ).rejects.toThrow('Choose another default model first.');
+    await expect(
+      admin().update({ id: qwen.id, input: { isAvailable: false } }),
+    ).rejects.toThrow('The default model cannot be made unavailable.');
+    const after = await prisma.model.findUniqueOrThrow({
+      where: { id: qwen.id },
+    });
+    expect(after).toMatchObject({ is_default: true, is_available: true });
+  });
+
+  it('requires availability before making a disabled model default', async () => {
+    const disabled = await createModel({ is_available: false });
+    await expect(
+      admin().update({ id: disabled.id, input: { isDefault: true } }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    const ok = await admin().update({
+      id: disabled.id,
+      input: { isDefault: true, isAvailable: true },
+    });
+    expect(ok).toMatchObject({ isDefault: true, isAvailable: true });
+  });
+
+  it('edits max context and availability; 404 for unknown ids', async () => {
+    const model = await createModel();
+    const updated = await admin().update({
+      id: model.id,
+      input: { maxContext: 16384, isAvailable: false },
+    });
+    expect(updated).toMatchObject({ maxContext: 16384, isAvailable: false });
+    await expect(
+      admin().update({
+        id: '00000000-0000-7000-8000-000000000000',
+        input: { maxContext: 1024 },
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
 ```
 
 - [ ] **Step 2: Run** `pnpm --filter @js-rag-stack/api exec jest test/models.integration.spec.ts` — Expected: FAIL (service missing).
@@ -1429,7 +1462,10 @@ export interface ToAdminModelParams {
 import type { AdminModel } from '@js-rag-stack/contracts';
 import type { ToAdminModelParams } from './models.types';
 
-export function toAdminModel({ model, installed }: ToAdminModelParams): AdminModel {
+export function toAdminModel({
+  model,
+  installed,
+}: ToAdminModelParams): AdminModel {
   return {
     id: model.id,
     name: model.name,
@@ -1524,10 +1560,7 @@ export class ModelAdministrationService {
         'The default model cannot be made unavailable.',
       );
     }
-    if (
-      input.isDefault === true &&
-      input.isAvailable === false
-    ) {
+    if (input.isDefault === true && input.isAvailable === false) {
       throw new ConflictException(
         'The default model cannot be made unavailable.',
       );
@@ -1573,11 +1606,13 @@ git commit -m "feat(api): add model administration rules"
 ### Task 6: Admin auth — env, tokens, sessions, guard, controller, origin isolation
 
 **Files:**
+
 - Modify: `apps/api/src/config/environment.schema.ts`, `apps/api/src/main.ts`, `apps/api/src/common/guards/origin.guard.ts`, `apps/api/src/common/middleware/request-principal.middleware.ts`, `apps/api/src/common/types/express.d.ts`, `apps/api/src/common/security/security.helpers.ts`, `apps/api/src/auth/auth.helpers.ts` (move `hashToken`), `packages/contracts/src/index.ts`
 - Create: `apps/api/src/common/models/admin-principal.ts`, `apps/api/src/admin/admin.helpers.ts`, and under `apps/api/src/admin/auth/`: `admin-auth.module.ts`, `admin-auth.controller.ts`, `admin-auth.service.ts`, `admin-auth.guard.ts`, `admin-accounts.service.ts`, `admin-accounts.repository.ts`, `admin-sessions.repository.ts`, `admin-token.service.ts`, `admin-cookie.service.ts`, `admin-auth.types.ts`, `admin-auth.helpers.ts`, `dto/admin-sign-in.dto.ts`, `models/admin-response.dto.ts`
 - Test: create `apps/api/test/admin-auth.integration.spec.ts`, `apps/api/test/admin.helpers.spec.ts`; modify `apps/api/test/security.spec.ts`, `apps/api/test/environment.schema.spec.ts`
 
 **Interfaces:**
+
 - Produces:
   - Env: `ADMIN_ORIGIN`, `ADMIN_JWT_SECRET`, `ADMIN_ACCESS_TTL`, `ADMIN_REFRESH_TTL` (defaults in Global Constraints).
   - `interface AdminPrincipal { admin_id: string; admin_session_id: string }` (`common/models/admin-principal.ts`); `Express.Request.admin?: AdminPrincipal`.
@@ -1612,20 +1647,26 @@ describe('isAdminPath', () => {
 Append to `apps/api/test/security.spec.ts` (inside the existing describe; reuse its `createContext` helper):
 
 ```ts
-  it('isolates admin routes to ADMIN_ORIGIN and user routes to WEB_ORIGIN', () => {
-    const guard = new OriginGuard(config);
-    const post = (url: string, origin: string) =>
-      createContext({
-        method: 'POST',
-        originalUrl: url,
-        get: (name: string) =>
-          name.toLowerCase() === 'origin' ? origin : undefined,
-      } as unknown as Request);
+it('isolates admin routes to ADMIN_ORIGIN and user routes to WEB_ORIGIN', () => {
+  const guard = new OriginGuard(config);
+  const post = (url: string, origin: string) =>
+    createContext({
+      method: 'POST',
+      originalUrl: url,
+      get: (name: string) =>
+        name.toLowerCase() === 'origin' ? origin : undefined,
+    } as unknown as Request);
 
-    expect(guard.canActivate(post('/api/v1/admin/models', 'http://localhost:5174'))).toBe(true);
-    expect(() => guard.canActivate(post('/api/v1/admin/models', 'http://localhost:5173'))).toThrow(ForbiddenException);
-    expect(() => guard.canActivate(post('/api/v1/chats', 'http://localhost:5174'))).toThrow(ForbiddenException);
-  });
+  expect(
+    guard.canActivate(post('/api/v1/admin/models', 'http://localhost:5174')),
+  ).toBe(true);
+  expect(() =>
+    guard.canActivate(post('/api/v1/admin/models', 'http://localhost:5173')),
+  ).toThrow(ForbiddenException);
+  expect(() =>
+    guard.canActivate(post('/api/v1/chats', 'http://localhost:5174')),
+  ).toThrow(ForbiddenException);
+});
 ```
 
 (Import `ForbiddenException` from `@nestjs/common` if not already imported.)
@@ -1737,7 +1778,10 @@ describe('admin authentication', () => {
     const rotatedPrincipal = await auth.authenticate(
       second.jar[cookies.accessCookieName]!,
     );
-    await auth.signOut({ principal: rotatedPrincipal, response: response().res });
+    await auth.signOut({
+      principal: rotatedPrincipal,
+      response: response().res,
+    });
     await expect(
       auth.authenticate(second.jar[cookies.accessCookieName]!),
     ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -1746,10 +1790,16 @@ describe('admin authentication', () => {
   it('uses one generic message for unknown email and wrong password', async () => {
     const email = await createAdmin();
     await expect(
-      auth.signIn({ input: { email, password: 'wrong-password!' }, response: response().res }),
+      auth.signIn({
+        input: { email, password: 'wrong-password!' },
+        response: response().res,
+      }),
     ).rejects.toThrow('Invalid email or password.');
     await expect(
-      auth.signIn({ input: { email: 'nobody@example.com', password }, response: response().res }),
+      auth.signIn({
+        input: { email: 'nobody@example.com', password },
+        response: response().res,
+      }),
     ).rejects.toThrow('Invalid email or password.');
   });
 
@@ -1766,7 +1816,9 @@ describe('admin authentication', () => {
         }),
       }) as never;
 
-    await expect(guard.canActivate(context({ access_token: userToken }))).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(
+      guard.canActivate(context({ access_token: userToken })),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
     await expect(
       guard.canActivate(context({ [cookies.accessCookieName]: userToken })),
     ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -1779,7 +1831,10 @@ describe('admin authentication', () => {
       auth.signIn({ input: { email, password }, response: response().res }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
     await expect(
-      auth.signIn({ input: { email, password: 'a-brand-new-password' }, response: response().res }),
+      auth.signIn({
+        input: { email, password: 'a-brand-new-password' },
+        response: response().res,
+      }),
     ).resolves.toMatchObject({ email });
     await expect(accounts.upsert({ email, password: 'short' })).rejects.toThrow(
       'Admin passwords must be at least 12 characters.',
@@ -1840,7 +1895,9 @@ export const ADMIN_ROUTE_PREFIX = '/api/v1/admin';
 export function isAdminPath(url: string | undefined): boolean {
   if (!url) return false;
   const path = url.split('?')[0] ?? '';
-  return path === ADMIN_ROUTE_PREFIX || path.startsWith(`${ADMIN_ROUTE_PREFIX}/`);
+  return (
+    path === ADMIN_ROUTE_PREFIX || path.startsWith(`${ADMIN_ROUTE_PREFIX}/`)
+  );
 }
 
 export function getAdminPrincipal(request: Request): AdminPrincipal {
@@ -1854,14 +1911,14 @@ export function getAdminPrincipal(request: Request): AdminPrincipal {
 `origin.guard.ts`: read `this.adminOrigin = config.get('ADMIN_ORIGIN', { infer: true })`; in `canActivate` after the safe-method check:
 
 ```ts
-    const expectedOrigin = isAdminPath(request.originalUrl)
-      ? this.adminOrigin
-      : this.allowedOrigin;
-    const origin = request.get('origin');
+const expectedOrigin = isAdminPath(request.originalUrl)
+  ? this.adminOrigin
+  : this.allowedOrigin;
+const origin = request.get('origin');
 
-    if (origin === expectedOrigin) {
-      return true;
-    }
+if (origin === expectedOrigin) {
+  return true;
+}
 ```
 
 (keep the dev API-origin exception below unchanged).
@@ -1869,11 +1926,11 @@ export function getAdminPrincipal(request: Request): AdminPrincipal {
 `request-principal.middleware.ts`: first line of `use`:
 
 ```ts
-    // Admin requests never resolve or create a user/anonymous principal.
-    if (isAdminPath(request.originalUrl)) {
-      next();
-      return;
-    }
+// Admin requests never resolve or create a user/anonymous principal.
+if (isAdminPath(request.originalUrl)) {
+  next();
+  return;
+}
 ```
 
 `main.ts`: `origin: [config.get('WEB_ORIGIN', { infer: true }), config.get('ADMIN_ORIGIN', { infer: true })],`.
@@ -2005,18 +2062,37 @@ export class AdminTokenService {
     const base = { sub: identity.adminId, sessionId: identity.id };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync(
-        { ...base, jti: randomUUID(), type: 'access' } satisfies AdminTokenClaims,
-        { secret: this.secret, expiresIn: this.accessTtlSeconds, audience: AUDIENCE },
+        {
+          ...base,
+          jti: randomUUID(),
+          type: 'access',
+        } satisfies AdminTokenClaims,
+        {
+          secret: this.secret,
+          expiresIn: this.accessTtlSeconds,
+          audience: AUDIENCE,
+        },
       ),
       this.jwt.signAsync(
-        { ...base, jti: identity.refreshJti, type: 'refresh' } satisfies AdminTokenClaims,
-        { secret: this.secret, expiresIn: this.refreshTtlSeconds, audience: AUDIENCE },
+        {
+          ...base,
+          jti: identity.refreshJti,
+          type: 'refresh',
+        } satisfies AdminTokenClaims,
+        {
+          secret: this.secret,
+          expiresIn: this.refreshTtlSeconds,
+          audience: AUDIENCE,
+        },
       ),
     ]);
     return { accessToken, refreshToken };
   }
 
-  async verify({ rawToken, type }: VerifyAdminTokenParams): Promise<AdminTokenClaims> {
+  async verify({
+    rawToken,
+    type,
+  }: VerifyAdminTokenParams): Promise<AdminTokenClaims> {
     let claims: AdminTokenClaims;
     try {
       claims = await this.jwt.verifyAsync<AdminTokenClaims>(rawToken, {
@@ -2069,8 +2145,12 @@ export class AdminCookieService {
       sameSite: config.get('COOKIE_SAME_SITE', { infer: true }),
       domain: config.get('COOKIE_DOMAIN', { infer: true }),
     };
-    this.accessMaxAge = parseDurationMs(config.get('ADMIN_ACCESS_TTL', { infer: true }));
-    this.refreshMaxAge = parseDurationMs(config.get('ADMIN_REFRESH_TTL', { infer: true }));
+    this.accessMaxAge = parseDurationMs(
+      config.get('ADMIN_ACCESS_TTL', { infer: true }),
+    );
+    this.refreshMaxAge = parseDurationMs(
+      config.get('ADMIN_REFRESH_TTL', { infer: true }),
+    );
   }
 
   set(response: Response, tokens: AdminTokens): void {
@@ -2087,8 +2167,14 @@ export class AdminCookieService {
   }
 
   clear(response: Response): void {
-    response.clearCookie(this.accessCookieName, { ...this.baseOptions, path: ADMIN_ROUTE_PREFIX });
-    response.clearCookie(this.refreshCookieName, { ...this.baseOptions, path: REFRESH_PATH });
+    response.clearCookie(this.accessCookieName, {
+      ...this.baseOptions,
+      path: ADMIN_ROUTE_PREFIX,
+    });
+    response.clearCookie(this.refreshCookieName, {
+      ...this.baseOptions,
+      path: REFRESH_PATH,
+    });
   }
 }
 ```
@@ -2117,7 +2203,10 @@ export class AdminAccountsRepository {
     return this.prisma.admin.upsert({
       where: { email: data.email },
       create: data,
-      update: { password_hash: data.password_hash, display_name: data.display_name },
+      update: {
+        password_hash: data.password_hash,
+        display_name: data.display_name,
+      },
     });
   }
 
@@ -2173,7 +2262,10 @@ export class AdminSessionsRepository {
   }
 
   // Revoke-then-create in one transaction; a reused refresh token loses the race.
-  rotate({ sessionId, ...params }: RotateAdminSessionParams): Promise<AdminTokens> {
+  rotate({
+    sessionId,
+    ...params
+  }: RotateAdminSessionParams): Promise<AdminTokens> {
     return this.prisma.$transaction(async (transaction) => {
       const revoked = await transaction.adminSession.updateMany({
         where: { id: sessionId, revoked_at: null },
@@ -2298,11 +2390,21 @@ export class AdminAuthService {
     private readonly passwords: PasswordHasher,
     config: ConfigService<AppEnvironment, true>,
   ) {
-    this.refreshTtlMs = parseDurationMs(config.get('ADMIN_REFRESH_TTL', { infer: true }));
+    this.refreshTtlMs = parseDurationMs(
+      config.get('ADMIN_REFRESH_TTL', { infer: true }),
+    );
   }
 
-  async signIn({ input, response }: { input: AdminSignInInput; response: Response }): Promise<AdminProfile> {
-    const admin = await this.accounts.findByEmail(normalizeAdminEmail(input.email));
+  async signIn({
+    input,
+    response,
+  }: {
+    input: AdminSignInInput;
+    response: Response;
+  }): Promise<AdminProfile> {
+    const admin = await this.accounts.findByEmail(
+      normalizeAdminEmail(input.email),
+    );
     // Verify against a dummy hash for unknown emails so timing does not reveal accounts.
     const hash = admin?.password_hash ?? (await this.getDummyHash());
     const valid = await this.passwords.verify({ hash, plain: input.password });
@@ -2318,7 +2420,13 @@ export class AdminAuthService {
     return toAdminProfile(admin);
   }
 
-  async refresh({ rawToken, response }: { rawToken: string; response: Response }): Promise<AdminProfile> {
+  async refresh({
+    rawToken,
+    response,
+  }: {
+    rawToken: string;
+    response: Response;
+  }): Promise<AdminProfile> {
     const claims = await this.tokens.verify({ rawToken, type: 'refresh' });
     const session = await this.sessions.findById(claims.sessionId);
     if (
@@ -2327,12 +2435,16 @@ export class AdminAuthService {
       session.refresh_jti !== claims.jti ||
       session.revoked_at ||
       session.expires_at <= new Date() ||
-      !safeEqual({ left: session.refresh_token_hash, right: hashToken(rawToken) })
+      !safeEqual({
+        left: session.refresh_token_hash,
+        right: hashToken(rawToken),
+      })
     ) {
       throw new UnauthorizedException('Admin refresh token is invalid.');
     }
     const admin = await this.accounts.findById(session.admin_id);
-    if (!admin) throw new UnauthorizedException('Admin refresh token is invalid.');
+    if (!admin)
+      throw new UnauthorizedException('Admin refresh token is invalid.');
 
     try {
       const tokens = await this.sessions.rotate({
@@ -2344,7 +2456,9 @@ export class AdminAuthService {
       this.cookies.set(response, tokens);
     } catch (error) {
       if (error instanceof AdminSessionRotatedError) {
-        throw new UnauthorizedException('Admin refresh token has already been used.');
+        throw new UnauthorizedException(
+          'Admin refresh token has already been used.',
+        );
       }
       throw error;
     }
@@ -2352,13 +2466,25 @@ export class AdminAuthService {
   }
 
   async authenticate(rawAccessToken: string): Promise<AdminPrincipal> {
-    const claims = await this.tokens.verify({ rawToken: rawAccessToken, type: 'access' });
-    const session = await this.sessions.findActive({ sessionId: claims.sessionId, adminId: claims.sub });
+    const claims = await this.tokens.verify({
+      rawToken: rawAccessToken,
+      type: 'access',
+    });
+    const session = await this.sessions.findActive({
+      sessionId: claims.sessionId,
+      adminId: claims.sub,
+    });
     if (!session) throw new UnauthorizedException('Admin session is invalid.');
     return { admin_id: session.admin_id, admin_session_id: session.id };
   }
 
-  async signOut({ principal, response }: { principal: AdminPrincipal; response: Response }): Promise<void> {
+  async signOut({
+    principal,
+    response,
+  }: {
+    principal: AdminPrincipal;
+    response: Response;
+  }): Promise<void> {
     await this.sessions.revoke(principal.admin_session_id);
     this.cookies.clear(response);
   }
@@ -2369,7 +2495,9 @@ export class AdminAuthService {
     return toAdminProfile(admin);
   }
 
-  private async credentials(identity: Parameters<AdminTokenService['sign']>[0]) {
+  private async credentials(
+    identity: Parameters<AdminTokenService['sign']>[0],
+  ) {
     const tokens = await this.tokens.sign(identity);
     return { tokens, refreshTokenHash: hashToken(tokens.refreshToken) };
   }
@@ -2390,7 +2518,12 @@ export class AdminAuthService {
 `admin/auth/admin-auth.guard.ts`:
 
 ```ts
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { AdminAuthService } from './admin-auth.service';
 import { AdminCookieService } from './admin-cookie.service';
@@ -2454,8 +2587,24 @@ export class AdminAuthResponseDto {
 `admin/auth/admin-auth.controller.ts`:
 
 ```ts
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { getCookie } from '../../auth/auth.helpers';
 import { CsrfResponseDto } from '../../auth/models/auth-response.dto';
@@ -2503,7 +2652,10 @@ export class AdminAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<AdminAuthResponseDto> {
-    const rawToken = getCookie({ request, name: this.cookies.refreshCookieName });
+    const rawToken = getCookie({
+      request,
+      name: this.cookies.refreshCookieName,
+    });
     return { admin: await this.auth.refresh({ rawToken, response }) };
   }
 
@@ -2516,7 +2668,10 @@ export class AdminAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
-    await this.auth.signOut({ principal: getAdminPrincipal(request), response });
+    await this.auth.signOut({
+      principal: getAdminPrincipal(request),
+      response,
+    });
   }
 
   @Get('me')
@@ -2557,7 +2712,12 @@ import { AdminTokenService } from './admin-token.service';
     AdminAccountsService,
     AdminAuthGuard,
   ],
-  exports: [AdminAuthGuard, AdminAuthService, AdminCookieService, AdminAccountsService],
+  exports: [
+    AdminAuthGuard,
+    AdminAuthService,
+    AdminCookieService,
+    AdminAccountsService,
+  ],
 })
 export class AdminAuthModule {}
 ```
@@ -2578,11 +2738,13 @@ git commit -m "feat(api): add isolated admin authentication"
 ### Task 7: `admin:create` CLI
 
 **Files:**
+
 - Create: `apps/api/src/cli/admin-cli.module.ts`, `apps/api/src/cli/create-admin.ts`, `apps/api/src/cli/create-admin.helpers.ts`
 - Modify: `apps/api/package.json`
 - Test: `apps/api/test/admin.helpers.spec.ts` (append)
 
 **Interfaces:**
+
 - Consumes: `AdminAccountsService.upsert` (Task 6).
 - Produces: `parseCreateAdminArgs(argv: string[]): { email: string; name: string | null }` (throws `Error('Usage: admin:create --email <email> [--name <name>]')` when `--email` missing).
 
@@ -2593,15 +2755,22 @@ import { parseCreateAdminArgs } from '../src/cli/create-admin.helpers';
 
 describe('parseCreateAdminArgs', () => {
   it('parses email and optional name', () => {
-    expect(parseCreateAdminArgs(['--email', 'a@b.co', '--name', 'Ops'])).toEqual({
+    expect(
+      parseCreateAdminArgs(['--email', 'a@b.co', '--name', 'Ops']),
+    ).toEqual({
       email: 'a@b.co',
       name: 'Ops',
     });
-    expect(parseCreateAdminArgs(['--email=a@b.co'])).toEqual({ email: 'a@b.co', name: null });
+    expect(parseCreateAdminArgs(['--email=a@b.co'])).toEqual({
+      email: 'a@b.co',
+      name: null,
+    });
   });
 
   it('requires --email', () => {
-    expect(() => parseCreateAdminArgs([])).toThrow('Usage: admin:create --email <email> [--name <name>]');
+    expect(() => parseCreateAdminArgs([])).toThrow(
+      'Usage: admin:create --email <email> [--name <name>]',
+    );
   });
 });
 ```
@@ -2617,7 +2786,10 @@ import { parseArgs } from 'node:util';
 
 const USAGE = 'Usage: admin:create --email <email> [--name <name>]';
 
-export function parseCreateAdminArgs(argv: string[]): { email: string; name: string | null } {
+export function parseCreateAdminArgs(argv: string[]): {
+  email: string;
+  name: string | null;
+} {
   const { values } = parseArgs({
     args: argv.filter((arg) => arg !== '--'),
     options: { email: { type: 'string' }, name: { type: 'string' } },
@@ -2631,7 +2803,9 @@ export function parseCreateAdminArgs(argv: string[]): { email: string; name: str
 export function promptHidden(question: string): Promise<string> {
   const input = process.stdin;
   if (!input.isTTY) {
-    return Promise.reject(new Error('admin:create needs an interactive terminal.'));
+    return Promise.reject(
+      new Error('admin:create needs an interactive terminal.'),
+    );
   }
   return new Promise((resolve, reject) => {
     let value = '';
@@ -2746,11 +2920,13 @@ git commit -m "feat(api): add admin:create CLI"
 ### Task 8: `UsageReportingService` — totals, breakdown, rows
 
 **Files:**
+
 - Create: `apps/api/src/usage/usage-reporting.service.ts`
 - Modify: `apps/api/src/usage/usage.repository.ts`, `usage.types.ts`, `usage.helpers.ts`, `usage.module.ts`, `packages/contracts/src/index.ts`
 - Test: create `apps/api/test/admin-reporting.integration.spec.ts`
 
 **Interfaces:**
+
 - Produces (contracts, verbatim):
 
 ```ts
@@ -2830,12 +3006,21 @@ describe('usage reporting', () => {
     ).id;
     const session = await prisma.anonymousSession.create({
       data: {
-        token_hash: Math.random().toString(16).slice(2).padEnd(64, '0').slice(0, 64),
+        token_hash: Math.random()
+          .toString(16)
+          .slice(2)
+          .padEnd(64, '0')
+          .slice(0, 64),
         expires_at: new Date(Date.now() + 86_400_000),
       },
     });
     anonymousId = session.id;
-    const row = (kind: 'CHAT' | 'SUMMARY', input: number, output: number, at: string) => ({
+    const row = (
+      kind: 'CHAT' | 'SUMMARY',
+      input: number,
+      output: number,
+      at: string,
+    ) => ({
       anonymous_session_id: anonymousId,
       model_id,
       kind,
@@ -2853,7 +3038,9 @@ describe('usage reporting', () => {
   });
 
   afterAll(async () => {
-    await prisma.usageLog.deleteMany({ where: { anonymous_session_id: anonymousId } });
+    await prisma.usageLog.deleteMany({
+      where: { anonymous_session_id: anonymousId },
+    });
     await prisma.anonymousSession.delete({ where: { id: anonymousId } });
     await prisma.onApplicationShutdown();
   });
@@ -2861,7 +3048,9 @@ describe('usage reporting', () => {
   const owner = () => ({ type: 'anonymous' as const, id: anonymousId });
 
   it('totals all rows', async () => {
-    await expect(reporting.getTotals({ owner: owner(), range: {} })).resolves.toEqual({
+    await expect(
+      reporting.getTotals({ owner: owner(), range: {} }),
+    ).resolves.toEqual({
       requests: 3,
       inputTokens: 350,
       outputTokens: 35,
@@ -2873,7 +3062,10 @@ describe('usage reporting', () => {
   it('applies from-inclusive / to-exclusive ranges', async () => {
     const totals = await reporting.getTotals({
       owner: owner(),
-      range: { from: new Date('2026-09-15T10:00:00Z'), to: new Date('2026-09-20T10:00:00Z') },
+      range: {
+        from: new Date('2026-09-15T10:00:00Z'),
+        to: new Date('2026-09-20T10:00:00Z'),
+      },
     });
     expect(totals).toMatchObject({ requests: 1, inputTokens: 200 });
   });
@@ -2884,15 +3076,36 @@ describe('usage reporting', () => {
         owner: { type: 'user', id: '00000000-0000-7000-8000-000000000000' },
         range: {},
       }),
-    ).resolves.toEqual({ requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0, lastActivityAt: null });
+    ).resolves.toEqual({
+      requests: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      lastActivityAt: null,
+    });
   });
 
   it('breaks down by model and kind', async () => {
-    const breakdown = await reporting.getBreakdown({ owner: owner(), range: {} });
+    const breakdown = await reporting.getBreakdown({
+      owner: owner(),
+      range: {},
+    });
     expect(breakdown).toEqual(
       expect.arrayContaining([
-        { model: 'qwen2.5:1.5b', kind: 'chat', requests: 2, inputTokens: 300, outputTokens: 30 },
-        { model: 'qwen2.5:1.5b', kind: 'summary', requests: 1, inputTokens: 50, outputTokens: 5 },
+        {
+          model: 'qwen2.5:1.5b',
+          kind: 'chat',
+          requests: 2,
+          inputTokens: 300,
+          outputTokens: 30,
+        },
+        {
+          model: 'qwen2.5:1.5b',
+          kind: 'summary',
+          requests: 1,
+          inputTokens: 50,
+          outputTokens: 5,
+        },
       ]),
     );
   });
@@ -2925,10 +3138,16 @@ Add the contracts block above to `packages/contracts/src/index.ts`. Add the type
 `usage.helpers.ts` — append:
 
 ```ts
-import type { Prisma, UsageKind as DbUsageKind } from '../generated/prisma/client';
+import type {
+  Prisma,
+  UsageKind as DbUsageKind,
+} from '../generated/prisma/client';
 import type { UsageQueryParams } from './usage.types';
 
-export function toUsageWhere({ owner, range }: UsageQueryParams): Prisma.UsageLogWhereInput {
+export function toUsageWhere({
+  owner,
+  range,
+}: UsageQueryParams): Prisma.UsageLogWhereInput {
   return {
     ...(owner.type === 'user'
       ? { user_id: owner.id }
@@ -2943,7 +3162,9 @@ export function toWireKind(kind: DbUsageKind): 'chat' | 'summary' {
   return kind === 'CHAT' ? 'chat' : 'summary';
 }
 
-export function toSafeNumber(value: bigint | number | null | undefined): number {
+export function toSafeNumber(
+  value: bigint | number | null | undefined,
+): number {
   if (value === null || value === undefined) return 0;
   return typeof value === 'bigint' ? Number(value) : value;
 }
@@ -2998,7 +3219,12 @@ export function toSafeNumber(value: bigint | number | null | undefined): number 
 
 ```ts
 import { Injectable } from '@nestjs/common';
-import type { Paginated, UsageBreakdownItem, UsageRow, UsageTotals } from '@js-rag-stack/contracts';
+import type {
+  Paginated,
+  UsageBreakdownItem,
+  UsageRow,
+  UsageTotals,
+} from '@js-rag-stack/contracts';
 import { toSafeNumber, toUsageWhere, toWireKind } from './usage.helpers';
 import { UsageRepository } from './usage.repository';
 import type { UsageQueryParams, UsageRowsParams } from './usage.types';
@@ -3021,7 +3247,9 @@ export class UsageReportingService {
   }
 
   async getBreakdown(params: UsageQueryParams): Promise<UsageBreakdownItem[]> {
-    const { groups, modelNames } = await this.usage.breakdown(toUsageWhere(params));
+    const { groups, modelNames } = await this.usage.breakdown(
+      toUsageWhere(params),
+    );
     return groups.map((group) => ({
       model: modelNames.get(group.model_id) ?? 'unknown',
       kind: toWireKind(group.kind),
@@ -3031,7 +3259,10 @@ export class UsageReportingService {
     }));
   }
 
-  async listRows({ page, ...params }: UsageRowsParams): Promise<Paginated<UsageRow>> {
+  async listRows({
+    page,
+    ...params
+  }: UsageRowsParams): Promise<Paginated<UsageRow>> {
     const [rows, total] = await this.usage.findRows({
       where: toUsageWhere(params),
       skip: (page.page - 1) * page.pageSize,
@@ -3071,11 +3302,13 @@ git commit -m "feat(api): add usage reporting service"
 ### Task 9: Admin users, anonymous sessions & models endpoints; `AdminModule` wiring
 
 **Files:**
+
 - Create: `apps/api/src/admin/admin.module.ts`; `apps/api/src/admin/common/admin-query.dto.ts`, `admin-usage.dto.ts`, `admin-query.helpers.ts`, `admin-list.sql.ts`; `apps/api/src/admin/users/{admin-users.module,admin-users.controller,admin-users.service,admin-users.repository,admin-users.types}.ts`, `apps/api/src/admin/users/models/admin-users-response.dto.ts`, `apps/api/src/admin/users/dto/list-users-query.dto.ts`; `apps/api/src/admin/anonymous-sessions/{admin-anonymous-sessions.module,admin-anonymous-sessions.controller,admin-anonymous-sessions.service,admin-anonymous-sessions.repository,admin-anonymous-sessions.types}.ts`, `apps/api/src/admin/anonymous-sessions/models/admin-anonymous-response.dto.ts`; `apps/api/src/admin/models/{admin-models.module,admin-models.controller}.ts`, `apps/api/src/admin/models/dto/{create-model.dto,update-model.dto}.ts`, `apps/api/src/admin/models/models/admin-models-response.dto.ts`
 - Modify: `apps/api/src/app.module.ts`, `packages/contracts/src/index.ts`, `packages/api-client/openapi.json` (regenerated)
 - Test: append to `apps/api/test/admin-reporting.integration.spec.ts`, `apps/api/test/admin.helpers.spec.ts`; modify `apps/api/test/app.module.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `UsageReportingService` (Task 8), `ModelAdministrationService` (Task 5), `AdminAuthGuard` (Task 6), `Paginated`, `UsageTotals`, `UsageBreakdownItem`, `UsageRow` (contracts).
 - Produces (contracts, verbatim):
 
@@ -3101,7 +3334,12 @@ export interface AdminUserListItem {
 }
 
 export interface AdminUserDetail {
-  user: { id: string; email: string; displayName: string | null; createdAt: string };
+  user: {
+    id: string;
+    email: string;
+    displayName: string | null;
+    createdAt: string;
+  };
   usage: UsageTotals;
   breakdown: UsageBreakdownItem[];
 }
@@ -3116,7 +3354,13 @@ export interface AdminAnonymousListItem {
 }
 
 export interface AdminAnonymousDetail {
-  session: { id: string; createdAt: string; lastSeenAt: string; expiresAt: string; chatCount: number };
+  session: {
+    id: string;
+    createdAt: string;
+    lastSeenAt: string;
+    expiresAt: string;
+    chatCount: number;
+  };
   usage: UsageTotals;
   breakdown: UsageBreakdownItem[];
 }
@@ -3131,12 +3375,19 @@ Append to `apps/api/test/admin.helpers.spec.ts`:
 
 ```ts
 import { BadRequestException } from '@nestjs/common';
-import { escapeLike, toPageRequest, toUsageRange } from '../src/admin/common/admin-query.helpers';
+import {
+  escapeLike,
+  toPageRequest,
+  toUsageRange,
+} from '../src/admin/common/admin-query.helpers';
 
 describe('admin query helpers', () => {
   it('defaults paging', () => {
     expect(toPageRequest({})).toEqual({ page: 1, pageSize: 25 });
-    expect(toPageRequest({ page: 3, pageSize: 10 })).toEqual({ page: 3, pageSize: 10 });
+    expect(toPageRequest({ page: 3, pageSize: 10 })).toEqual({
+      page: 3,
+      pageSize: 10,
+    });
   });
 
   it('parses ranges and rejects inverted ones', () => {
@@ -3145,7 +3396,9 @@ describe('admin query helpers', () => {
       from: new Date('2026-09-01'),
       to: new Date('2026-10-01'),
     });
-    expect(() => toUsageRange({ from: '2026-10-01', to: '2026-09-01' })).toThrow(BadRequestException);
+    expect(() =>
+      toUsageRange({ from: '2026-10-01', to: '2026-09-01' }),
+    ).toThrow(BadRequestException);
   });
 
   it('escapes LIKE wildcards', () => {
@@ -3157,51 +3410,80 @@ describe('admin query helpers', () => {
 Append to `apps/api/test/admin-reporting.integration.spec.ts` a new top-level `describe('admin lists', …)` with its own `beforeAll` that creates three users with distinct emails (`list-<hex>-a@example.com`, `-b`, `-c`) via `prisma.user.create({ data: { email, password_hash: 'x' } })`, gives user **a** usage `(100 in / 10 out, 2026-09-10)`, user **b** usage `(1000 in / 100 out, 2026-09-05)`, user **c** none; creates one anonymous session with usage and one empty anonymous session with no chats; `afterAll` deletes the usage rows, users and sessions. Tests:
 
 ```ts
-  it('sorts users by total tokens, zero-usage last, with numbers not strings', async () => {
-    const page = await users.list({ search: hex, sort: 'totalTokens', range: {}, page: { page: 1, pageSize: 25 } });
-    expect(page.items.map((u) => u.email)).toEqual([emailB, emailA, emailC]);
-    expect(page.items[0]?.usage).toEqual({
-      requests: 1, inputTokens: 1000, outputTokens: 100, totalTokens: 1100,
-      lastActivityAt: '2026-09-05T00:00:00.000Z',
-    });
-    expect(typeof page.items[0]?.usage.inputTokens).toBe('number');
-    expect(page.items[2]?.usage).toMatchObject({ requests: 0, totalTokens: 0, lastActivityAt: null });
-    expect(page.total).toBe(3);
+it('sorts users by total tokens, zero-usage last, with numbers not strings', async () => {
+  const page = await users.list({
+    search: hex,
+    sort: 'totalTokens',
+    range: {},
+    page: { page: 1, pageSize: 25 },
   });
+  expect(page.items.map((u) => u.email)).toEqual([emailB, emailA, emailC]);
+  expect(page.items[0]?.usage).toEqual({
+    requests: 1,
+    inputTokens: 1000,
+    outputTokens: 100,
+    totalTokens: 1100,
+    lastActivityAt: '2026-09-05T00:00:00.000Z',
+  });
+  expect(typeof page.items[0]?.usage.inputTokens).toBe('number');
+  expect(page.items[2]?.usage).toMatchObject({
+    requests: 0,
+    totalTokens: 0,
+    lastActivityAt: null,
+  });
+  expect(page.total).toBe(3);
+});
 
-  it('sorts by last activity with nulls last and paginates', async () => {
-    const page = await users.list({ search: hex, sort: 'lastActivity', range: {}, page: { page: 1, pageSize: 2 } });
-    expect(page.items.map((u) => u.email)).toEqual([emailA, emailB]);
-    expect(page.total).toBe(3);
+it('sorts by last activity with nulls last and paginates', async () => {
+  const page = await users.list({
+    search: hex,
+    sort: 'lastActivity',
+    range: {},
+    page: { page: 1, pageSize: 2 },
   });
+  expect(page.items.map((u) => u.email)).toEqual([emailA, emailB]);
+  expect(page.total).toBe(3);
+});
 
-  it('applies the date range to totals', async () => {
-    const page = await users.list({
-      search: hex, sort: 'totalTokens',
-      range: { from: new Date('2026-09-08T00:00:00Z') },
-      page: { page: 1, pageSize: 25 },
-    });
-    expect(page.items[0]?.email).toBe(emailA);
+it('applies the date range to totals', async () => {
+  const page = await users.list({
+    search: hex,
+    sort: 'totalTokens',
+    range: { from: new Date('2026-09-08T00:00:00Z') },
+    page: { page: 1, pageSize: 25 },
   });
+  expect(page.items[0]?.email).toBe(emailA);
+});
 
-  it('treats search wildcards literally', async () => {
-    const page = await users.list({ search: '%', sort: 'createdAt', range: {}, page: { page: 1, pageSize: 25 } });
-    expect(page.items.every((u) => u.email.includes('%'))).toBe(true);
+it('treats search wildcards literally', async () => {
+  const page = await users.list({
+    search: '%',
+    sort: 'createdAt',
+    range: {},
+    page: { page: 1, pageSize: 25 },
   });
+  expect(page.items.every((u) => u.email.includes('%'))).toBe(true);
+});
 
-  it('returns user detail and 404 for unknown users', async () => {
-    const detail = await users.get({ id: userA.id, range: {} });
-    expect(detail.usage.inputTokens).toBe(100);
-    expect(detail.breakdown).toHaveLength(1);
-    await expect(users.get({ id: '00000000-0000-7000-8000-000000000000', range: {} })).rejects.toBeInstanceOf(NotFoundException);
-  });
+it('returns user detail and 404 for unknown users', async () => {
+  const detail = await users.get({ id: userA.id, range: {} });
+  expect(detail.usage.inputTokens).toBe(100);
+  expect(detail.breakdown).toHaveLength(1);
+  await expect(
+    users.get({ id: '00000000-0000-7000-8000-000000000000', range: {} }),
+  ).rejects.toBeInstanceOf(NotFoundException);
+});
 
-  it('lists only anonymous sessions with usage or chats', async () => {
-    const page = await anonymous.list({ sort: 'createdAt', range: {}, page: { page: 1, pageSize: 100 } });
-    const ids = page.items.map((s) => s.id);
-    expect(ids).toContain(activeSessionId);
-    expect(ids).not.toContain(emptySessionId);
+it('lists only anonymous sessions with usage or chats', async () => {
+  const page = await anonymous.list({
+    sort: 'createdAt',
+    range: {},
+    page: { page: 1, pageSize: 100 },
   });
+  const ids = page.items.map((s) => s.id);
+  expect(ids).toContain(activeSessionId);
+  expect(ids).not.toContain(emptySessionId);
+});
 ```
 
 where `users = new AdminUsersService(new AdminUsersRepository(prisma), reporting)` and `anonymous = new AdminAnonymousSessionsService(new AdminAnonymousSessionsRepository(prisma), reporting)`; `hex` is the random token embedded in the three emails (search is a substring match).
@@ -3223,7 +3505,10 @@ export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;
 
 export function toPageRequest(query: PageQuery): PageRequest {
-  return { page: query.page ?? 1, pageSize: query.pageSize ?? DEFAULT_PAGE_SIZE };
+  return {
+    page: query.page ?? 1,
+    pageSize: query.pageSize ?? DEFAULT_PAGE_SIZE,
+  };
 }
 
 export function toUsageRange(query: UsageRangeQuery): UsageRange {
@@ -3295,7 +3580,10 @@ export function usageRangeSql(range: UsageRange): Prisma.Sql {
   }`;
 }
 
-export function usageAggregateSql(ownerColumn: 'user_id' | 'anonymous_session_id', range: UsageRange): Prisma.Sql {
+export function usageAggregateSql(
+  ownerColumn: 'user_id' | 'anonymous_session_id',
+  range: UsageRange,
+): Prisma.Sql {
   const column = Prisma.raw(`"${ownerColumn}"`);
   return Prisma.sql`
     SELECT ${column} AS owner_id,
@@ -3426,12 +3714,21 @@ export class AdminUsersRepository {
 
 ```ts
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { AdminUserDetail, AdminUserListItem, Paginated, UsageRow } from '@js-rag-stack/contracts';
+import type {
+  AdminUserDetail,
+  AdminUserListItem,
+  Paginated,
+  UsageRow,
+} from '@js-rag-stack/contracts';
 import type { User } from '../../generated/prisma/client';
 import { UsageReportingService } from '../../usage/usage-reporting.service';
 import { toUsageTotals } from '../common/admin-query.helpers';
 import { AdminUsersRepository } from './admin-users.repository';
-import type { GetUserParams, GetUserUsageParams, ListUsersParams } from './admin-users.types';
+import type {
+  GetUserParams,
+  GetUserUsageParams,
+  ListUsersParams,
+} from './admin-users.types';
 
 @Injectable()
 export class AdminUsersService {
@@ -3475,9 +3772,17 @@ export class AdminUsersService {
     };
   }
 
-  async usage({ id, range, page }: GetUserUsageParams): Promise<Paginated<UsageRow>> {
+  async usage({
+    id,
+    range,
+    page,
+  }: GetUserUsageParams): Promise<Paginated<UsageRow>> {
     await this.require(id);
-    return this.reporting.listRows({ owner: { type: 'user', id }, range, page });
+    return this.reporting.listRows({
+      owner: { type: 'user', id },
+      range,
+      page,
+    });
   }
 
   private async require(id: string): Promise<User> {
@@ -3496,7 +3801,11 @@ import type { AdminUserSort } from '@js-rag-stack/contracts';
 import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { UsagePageQueryDto } from '../../common/admin-query.dto';
 
-export const ADMIN_USER_SORTS: AdminUserSort[] = ['lastActivity', 'totalTokens', 'createdAt'];
+export const ADMIN_USER_SORTS: AdminUserSort[] = [
+  'lastActivity',
+  'totalTokens',
+  'createdAt',
+];
 
 export class ListUsersQueryDto extends UsagePageQueryDto {
   @ApiPropertyOptional({ maxLength: 320 })
@@ -3517,16 +3826,40 @@ export class ListUsersQueryDto extends UsagePageQueryDto {
 `admin/users/admin-users.controller.ts`:
 
 ```ts
-import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
-import { ApiCookieAuth, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { AdminUserDetail, AdminUserListItem, Paginated, UsageRow } from '@js-rag-stack/contracts';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiCookieAuth,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import type {
+  AdminUserDetail,
+  AdminUserListItem,
+  Paginated,
+  UsageRow,
+} from '@js-rag-stack/contracts';
 import { AdminAuthGuard } from '../auth/admin-auth.guard';
-import { UsagePageQueryDto, UsageRangeQueryDto } from '../common/admin-query.dto';
+import {
+  UsagePageQueryDto,
+  UsageRangeQueryDto,
+} from '../common/admin-query.dto';
 import { toPageRequest, toUsageRange } from '../common/admin-query.helpers';
 import { UsageRowsPageDto } from '../common/admin-usage.dto';
 import { AdminUsersService } from './admin-users.service';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
-import { AdminUserDetailDto, AdminUsersPageDto } from './models/admin-users-response.dto';
+import {
+  AdminUserDetailDto,
+  AdminUsersPageDto,
+} from './models/admin-users-response.dto';
 
 @ApiTags('admin-users')
 @ApiCookieAuth('admin_access_token')
@@ -3538,7 +3871,9 @@ export class AdminUsersController {
   @Get()
   @ApiOperation({ summary: 'List users with usage totals' })
   @ApiOkResponse({ type: AdminUsersPageDto })
-  list(@Query() query: ListUsersQueryDto): Promise<Paginated<AdminUserListItem>> {
+  list(
+    @Query() query: ListUsersQueryDto,
+  ): Promise<Paginated<AdminUserListItem>> {
     return this.users.list({
       search: query.search,
       sort: query.sort ?? 'lastActivity',
@@ -3566,7 +3901,11 @@ export class AdminUsersController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Query() query: UsagePageQueryDto,
   ): Promise<Paginated<UsageRow>> {
-    return this.users.usage({ id, range: toUsageRange(query), page: toPageRequest(query) });
+    return this.users.usage({
+      id,
+      range: toUsageRange(query),
+      page: toPageRequest(query),
+    });
   }
 }
 ```
@@ -3641,14 +3980,25 @@ Service maps to `AdminAnonymousListItem` / `AdminAnonymousDetail` (`session.chat
 ```ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export const MIN_CONTEXT = 512;
 export const MAX_CONTEXT = 1_048_576;
 
 export class CreateModelDto {
   @ApiProperty({ example: 'llama3.2:3b', maxLength: 200 })
-  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @MinLength(1)
   @MaxLength(200)
@@ -3699,14 +4049,33 @@ export class UpdateModelDto {
 `admin/models/admin-models.controller.ts`:
 
 ```ts
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiConflictResponse, ApiCookieAuth, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiConflictResponse,
+  ApiCookieAuth,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { AdminModel, AdminModelsResponse } from '@js-rag-stack/contracts';
 import { ModelAdministrationService } from '../../models/model-administration.service';
 import { AdminAuthGuard } from '../auth/admin-auth.guard';
 import { CreateModelDto } from './dto/create-model.dto';
 import { UpdateModelDto } from './dto/update-model.dto';
-import { AdminModelDto, AdminModelsResponseDto } from './models/admin-models-response.dto';
+import {
+  AdminModelDto,
+  AdminModelsResponseDto,
+} from './models/admin-models-response.dto';
 
 @ApiTags('admin-models')
 @ApiCookieAuth('admin_access_token')
@@ -3756,7 +4125,12 @@ import { AdminModelsModule } from './models/admin-models.module';
 import { AdminUsersModule } from './users/admin-users.module';
 
 @Module({
-  imports: [AdminAuthModule, AdminUsersModule, AdminAnonymousSessionsModule, AdminModelsModule],
+  imports: [
+    AdminAuthModule,
+    AdminUsersModule,
+    AdminAnonymousSessionsModule,
+    AdminModelsModule,
+  ],
 })
 export class AdminModule {}
 ```
@@ -3775,14 +4149,17 @@ git commit -m "feat(api): add admin users, anonymous sessions and models endpoin
 ```
 
 ---
+
 ### Task 10: API client (shared http + admin client) and web "model unavailable" state
 
 **Files:**
+
 - Create: `packages/api-client/src/http.ts`, `packages/api-client/src/admin.ts`
 - Modify: `packages/api-client/src/index.ts`
 - Modify: `apps/web/src/features/chat/model-selector.tsx`, `model-selector.test.tsx`, `chat.types.ts`, `chat-page.tsx`, `chat-page.test.tsx`
 
 **Interfaces:**
+
 - Produces:
   - `createHttp(options: { baseUrl: string; fetchImpl?: typeof fetch; csrfPath: string }): { request<T>(path: string, init?: RequestInit): Promise<T>; mutation<T>(path: string, init: RequestInit): Promise<T> }`; `ApiClientError`, `toApiError`, `toQuery(params: object): string` moved into `http.ts` and re-exported from `index.ts`.
   - `createAdminApiClient(options: ApiClientOptions)` returning: `signIn(input: AdminSignInInput): Promise<AdminAuthResponse>`, `signOut(): Promise<void>`, `getMe(): Promise<AdminAuthResponse>`, `listUsers(query?: ListUsersQuery): Promise<Paginated<AdminUserListItem>>`, `getUser(id: string, range?: UsageRangeQuery): Promise<AdminUserDetail>`, `getUserUsage(id: string, query?: UsagePageQuery): Promise<Paginated<UsageRow>>`, `listAnonymousSessions(query?: ListAnonymousQuery)`, `getAnonymousSession(id, range?)`, `getAnonymousSessionUsage(id, query?)`, `listModels(): Promise<AdminModelsResponse>`, `createModel(input: CreateModelInput): Promise<AdminModel>`, `updateModel(id: string, input: UpdateModelInput): Promise<AdminModel>`. Every call except `signIn` retries once after `POST /admin/auth/refresh` on a 401 (single in-flight refresh shared by concurrent calls).
@@ -3794,24 +4171,24 @@ git commit -m "feat(api): add admin users, anonymous sessions and models endpoin
 Append to `apps/web/src/features/chat/model-selector.test.tsx`:
 
 ```tsx
-  it('asks the user to switch when the chat model is unavailable', async () => {
-    const onChange = vi.fn();
-    render(
-      <ModelSelector
-        models={[{ name: 'a', default: true, maxContext: 8192 }]}
-        value="old:1b"
-        unavailableModel="old:1b"
-        disabled={false}
-        onChange={onChange}
-      />,
-    );
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'old:1b is no longer available — choose another model',
-    );
-    expect(screen.getByLabelText('Model')).toHaveValue('');
-    await userEvent.selectOptions(screen.getByLabelText('Model'), 'a');
-    expect(onChange).toHaveBeenCalledWith('a');
-  });
+it('asks the user to switch when the chat model is unavailable', async () => {
+  const onChange = vi.fn();
+  render(
+    <ModelSelector
+      models={[{ name: 'a', default: true, maxContext: 8192 }]}
+      value="old:1b"
+      unavailableModel="old:1b"
+      disabled={false}
+      onChange={onChange}
+    />,
+  );
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    'old:1b is no longer available — choose another model',
+  );
+  expect(screen.getByLabelText('Model')).toHaveValue('');
+  await userEvent.selectOptions(screen.getByLabelText('Model'), 'a');
+  expect(onChange).toHaveBeenCalledWith('a');
+});
 ```
 
 Add `unavailableModel={null}` to the two existing renders.
@@ -3819,22 +4196,31 @@ Add `unavailableModel={null}` to the two existing renders.
 Append to `apps/web/src/features/chat/chat-page.test.tsx`:
 
 ```tsx
-  it('blocks sending in a chat whose model was disabled until another is chosen', async () => {
-    api.getChat.mockResolvedValue({
-      ...makeChat({ id: 'c1', selectedModel: 'old:1b', selectedModelAvailable: false }),
-      nextCursor: null,
-      messages: [],
-      context: { usedTokens: null, maxTokens: 8192, summary: null, summarizedThroughMessageId: null },
-    });
-    renderPage('/chats/c1');
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'old:1b is no longer available — choose another model',
-    );
-    expect(screen.getByRole('textbox')).toBeDisabled();
-    await userEvent.selectOptions(screen.getByLabelText('Model'), 'qwen2.5:1.5b');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('textbox')).toBeEnabled();
+it('blocks sending in a chat whose model was disabled until another is chosen', async () => {
+  api.getChat.mockResolvedValue({
+    ...makeChat({
+      id: 'c1',
+      selectedModel: 'old:1b',
+      selectedModelAvailable: false,
+    }),
+    nextCursor: null,
+    messages: [],
+    context: {
+      usedTokens: null,
+      maxTokens: 8192,
+      summary: null,
+      summarizedThroughMessageId: null,
+    },
   });
+  renderPage('/chats/c1');
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'old:1b is no longer available — choose another model',
+  );
+  expect(screen.getByRole('textbox')).toBeDisabled();
+  await userEvent.selectOptions(screen.getByLabelText('Model'), 'qwen2.5:1.5b');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.getByRole('textbox')).toBeEnabled();
+});
 ```
 
 (If the composer's textbox has an accessible name, use `getByRole('textbox', { name: … })` as the other tests do. If other tests in the file build `getChat` results with a fixture helper that already includes `context`, reuse it.)
@@ -3867,7 +4253,11 @@ export interface HttpOptions {
   csrfPath: string;
 }
 
-export function createHttp({ baseUrl, fetchImpl = fetch, csrfPath }: HttpOptions) {
+export function createHttp({
+  baseUrl,
+  fetchImpl = fetch,
+  csrfPath,
+}: HttpOptions) {
   const root = baseUrl.replace(/\/$/, '');
 
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -3929,7 +4319,10 @@ import type {
 import { ApiClientError, createHttp, toQuery } from './http';
 
 export type UsagePageQuery = PageQuery & UsageRangeQuery;
-export type ListUsersQuery = UsagePageQuery & { search?: string; sort?: AdminUserSort };
+export type ListUsersQuery = UsagePageQuery & {
+  search?: string;
+  sort?: AdminUserSort;
+};
 export type ListAnonymousQuery = UsagePageQuery & { sort?: AdminUserSort };
 
 export function createAdminApiClient({
@@ -3946,7 +4339,8 @@ export function createAdminApiClient({
     try {
       return await call();
     } catch (error) {
-      if (!(error instanceof ApiClientError) || error.status !== 401) throw error;
+      if (!(error instanceof ApiClientError) || error.status !== 401)
+        throw error;
       refreshing ??= http
         .mutation<AdminAuthResponse>('/admin/auth/refresh', { method: 'POST' })
         .then(() => undefined)
@@ -3968,18 +4362,26 @@ export function createAdminApiClient({
         body: JSON.stringify(input),
       }),
     signOut: () =>
-      authed(() => http.mutation<void>('/admin/auth/sign-out', { method: 'POST' })),
+      authed(() =>
+        http.mutation<void>('/admin/auth/sign-out', { method: 'POST' }),
+      ),
     getMe: () => get<AdminAuthResponse>('/admin/auth/me'),
     listUsers: (query: ListUsersQuery = {}) =>
       get<Paginated<AdminUserListItem>>(`/admin/users${toQuery(query)}`),
     getUser: (userId: string, range: UsageRangeQuery = {}) =>
       get<AdminUserDetail>(`/admin/users/${id(userId)}${toQuery(range)}`),
     getUserUsage: (userId: string, query: UsagePageQuery = {}) =>
-      get<Paginated<UsageRow>>(`/admin/users/${id(userId)}/usage${toQuery(query)}`),
+      get<Paginated<UsageRow>>(
+        `/admin/users/${id(userId)}/usage${toQuery(query)}`,
+      ),
     listAnonymousSessions: (query: ListAnonymousQuery = {}) =>
-      get<Paginated<AdminAnonymousListItem>>(`/admin/anonymous-sessions${toQuery(query)}`),
+      get<Paginated<AdminAnonymousListItem>>(
+        `/admin/anonymous-sessions${toQuery(query)}`,
+      ),
     getAnonymousSession: (sessionId: string, range: UsageRangeQuery = {}) =>
-      get<AdminAnonymousDetail>(`/admin/anonymous-sessions/${id(sessionId)}${toQuery(range)}`),
+      get<AdminAnonymousDetail>(
+        `/admin/anonymous-sessions/${id(sessionId)}${toQuery(range)}`,
+      ),
     getAnonymousSessionUsage: (sessionId: string, query: UsagePageQuery = {}) =>
       get<Paginated<UsageRow>>(
         `/admin/anonymous-sessions/${id(sessionId)}/usage${toQuery(query)}`,
@@ -4012,40 +4414,40 @@ export type AdminApiClient = ReturnType<typeof createAdminApiClient>;
 `model-selector.tsx` — replace the returned JSX (after the empty-list branch):
 
 ```tsx
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <label htmlFor={id} className="sr-only">
-        Model
-      </label>
-      <select
-        id={id}
-        value={unavailableModel ? '' : (value ?? '')}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className="rounded-lg border border-border bg-bg px-2 py-1 text-sm text-fg hover:bg-surface focus:border-accent disabled:opacity-60"
-      >
-        {unavailableModel && (
-          <option value="" disabled>
-            Choose a model
-          </option>
-        )}
-        {models.map((model) => (
-          <option key={model.name} value={model.name}>
-            {model.name}
-            {model.default ? ' (default)' : ''}
-          </option>
-        ))}
-      </select>
+return (
+  <div className="flex flex-wrap items-center gap-2">
+    <label htmlFor={id} className="sr-only">
+      Model
+    </label>
+    <select
+      id={id}
+      value={unavailableModel ? '' : (value ?? '')}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      className="rounded-lg border border-border bg-bg px-2 py-1 text-sm text-fg hover:bg-surface focus:border-accent disabled:opacity-60"
+    >
       {unavailableModel && (
-        <p
-          role="alert"
-          className="rounded-full bg-warning-soft px-2.5 py-1 text-xs font-medium text-warning"
-        >
-          {unavailableModel} is no longer available — choose another model
-        </p>
+        <option value="" disabled>
+          Choose a model
+        </option>
       )}
-    </div>
-  );
+      {models.map((model) => (
+        <option key={model.name} value={model.name}>
+          {model.name}
+          {model.default ? ' (default)' : ''}
+        </option>
+      ))}
+    </select>
+    {unavailableModel && (
+      <p
+        role="alert"
+        className="rounded-full bg-warning-soft px-2.5 py-1 text-xs font-medium text-warning"
+      >
+        {unavailableModel} is no longer available — choose another model
+      </p>
+    )}
+  </div>
+);
 ```
 
 (destructure `unavailableModel` in the signature.)
@@ -4053,13 +4455,13 @@ export type AdminApiClient = ReturnType<typeof createAdminApiClient>;
 `chat-page.tsx` — after `activeModelInfo` is computed:
 
 ```tsx
-  const hasOverride = override?.scope === scope;
-  const chatModelDisabled =
-    !hasOverride && chat.data?.pages[0]?.selectedModelAvailable === false;
-  const unavailableModel =
-    activeModel && (chatModelDisabled || (models.isSuccess && !activeModelInfo))
-      ? activeModel
-      : null;
+const hasOverride = override?.scope === scope;
+const chatModelDisabled =
+  !hasOverride && chat.data?.pages[0]?.selectedModelAvailable === false;
+const unavailableModel =
+  activeModel && (chatModelDisabled || (models.isSuccess && !activeModelInfo))
+    ? activeModel
+    : null;
 ```
 
 Pass `unavailableModel={unavailableModel}` to `<ModelSelector>`, change the composer's `disabled={!activeModel}` to `disabled={!activeModel || Boolean(unavailableModel)}`, and make `handleSend` start with `if (!activeModel || unavailableModel) return false;`. Update `makeChat` in `apps/web/src/test/fixtures.ts` if Task 3 did not already add `selectedModelAvailable: true`.
@@ -4078,6 +4480,7 @@ git commit -m "feat: admin API client and unavailable-model prompt in web"
 ### Task 11: `apps/admin` scaffold — auth, shell, shared components
 
 **Files:**
+
 - Create: `apps/admin/package.json`, `index.html`, `vite.config.ts`, `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`, `eslint.config.mjs`
 - Create: `apps/admin/src/main.tsx`, `app.tsx`, `styles.css`, `lib/api.ts`, `lib/format.ts`, `lib/format.test.ts`, `lib/admin-client.test.ts`, `test/setup.ts`, `test/render.tsx`, `test/fixtures.ts`
 - Create: `apps/admin/src/features/auth/use-admin.ts`, `login-page.tsx`, `login-page.test.tsx`, `require-admin.tsx`, `require-admin.test.tsx`
@@ -4085,6 +4488,7 @@ git commit -m "feat: admin API client and unavailable-model prompt in web"
 - Modify: root `package.json` (add `"admin": "pnpm --filter @js-rag-stack/admin dev"`), `pnpm-lock.yaml` (via install)
 
 **Interfaces:**
+
 - Consumes: `createAdminApiClient`, `ApiClientError` (Task 10); contracts types.
 - Produces (used by Tasks 12–13):
   - `api: AdminApiClient` (`src/lib/api.ts`), `toErrorMessage(error: unknown): string`, `isUnauthorized(error: unknown): boolean`.
@@ -4204,7 +4608,9 @@ export function makeTotals(overrides: Partial<UsageTotals> = {}): UsageTotals {
   };
 }
 
-export function makeUser(overrides: Partial<AdminUserListItem> = {}): AdminUserListItem {
+export function makeUser(
+  overrides: Partial<AdminUserListItem> = {},
+): AdminUserListItem {
   return {
     id: '0199a000-0000-7000-8000-000000000001',
     email: 'ada@example.com',
@@ -4252,7 +4658,13 @@ Run `pnpm install` at the repo root so the workspace links the new package and u
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { formatDateTime, formatNumber, shortId, toIsoEndExclusive, toIsoStart } from './format';
+import {
+  formatDateTime,
+  formatNumber,
+  shortId,
+  toIsoEndExclusive,
+  toIsoStart,
+} from './format';
 
 describe('format helpers', () => {
   it('formats numbers and ids', () => {
@@ -4290,10 +4702,16 @@ describe('createAdminApiClient', () => {
   it('refreshes once on 401 and retries the request', async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(json(401, { error: { code: 'UNAUTHORIZED', message: 'no' } }))
+      .mockResolvedValueOnce(
+        json(401, { error: { code: 'UNAUTHORIZED', message: 'no' } }),
+      )
       .mockResolvedValueOnce(json(200, { csrfToken: 't' }))
-      .mockResolvedValueOnce(json(200, { admin: { id: 'a', email: 'a@b.co', displayName: null } }))
-      .mockResolvedValueOnce(json(200, { admin: { id: 'a', email: 'a@b.co', displayName: null } }));
+      .mockResolvedValueOnce(
+        json(200, { admin: { id: 'a', email: 'a@b.co', displayName: null } }),
+      )
+      .mockResolvedValueOnce(
+        json(200, { admin: { id: 'a', email: 'a@b.co', displayName: null } }),
+      );
     const client = createAdminApiClient({ baseUrl: '', fetchImpl });
     await expect(client.getMe()).resolves.toMatchObject({ admin: { id: 'a' } });
     expect(fetchImpl.mock.calls.map((call) => String(call[0]))).toEqual([
@@ -4307,18 +4725,28 @@ describe('createAdminApiClient', () => {
   it('surfaces 401 when refresh fails', async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(json(401, { error: { code: 'UNAUTHORIZED', message: 'no' } }))
+      .mockResolvedValueOnce(
+        json(401, { error: { code: 'UNAUTHORIZED', message: 'no' } }),
+      )
       .mockResolvedValueOnce(json(200, { csrfToken: 't' }))
-      .mockResolvedValueOnce(json(401, { error: { code: 'UNAUTHORIZED', message: 'expired' } }));
+      .mockResolvedValueOnce(
+        json(401, { error: { code: 'UNAUTHORIZED', message: 'expired' } }),
+      );
     const client = createAdminApiClient({ baseUrl: '', fetchImpl });
     await expect(client.getMe()).rejects.toMatchObject({ status: 401 });
   });
 
   it('serializes list queries, skipping empty values', async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(json(200, { items: [], page: 1, pageSize: 25, total: 0 }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        json(200, { items: [], page: 1, pageSize: 25, total: 0 }),
+      );
     const client = createAdminApiClient({ baseUrl: '', fetchImpl });
     await client.listUsers({ search: '', sort: 'totalTokens', page: 2 });
-    expect(String(fetchImpl.mock.calls[0]?.[0])).toBe('/api/v1/admin/users?sort=totalTokens&page=2');
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toBe(
+      '/api/v1/admin/users?sort=totalTokens&page=2',
+    );
   });
 });
 ```
@@ -4356,22 +4784,34 @@ describe('LoginPage', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('signs in and navigates to users', async () => {
-    api.signIn.mockResolvedValue({ admin: { id: 'a', email: 'a@b.co', displayName: null } });
+    api.signIn.mockResolvedValue({
+      admin: { id: 'a', email: 'a@b.co', displayName: null },
+    });
     renderLogin();
     await userEvent.type(screen.getByLabelText('Email'), 'a@b.co');
-    await userEvent.type(screen.getByLabelText('Password'), 'admin-password-123');
+    await userEvent.type(
+      screen.getByLabelText('Password'),
+      'admin-password-123',
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(await screen.findByText('Users landing')).toBeInTheDocument();
-    expect(api.signIn).toHaveBeenCalledWith({ email: 'a@b.co', password: 'admin-password-123' });
+    expect(api.signIn).toHaveBeenCalledWith({
+      email: 'a@b.co',
+      password: 'admin-password-123',
+    });
   });
 
   it('shows the server error', async () => {
-    api.signIn.mockRejectedValue(new ApiClientError(401, 'UNAUTHORIZED', 'Invalid email or password.'));
+    api.signIn.mockRejectedValue(
+      new ApiClientError(401, 'UNAUTHORIZED', 'Invalid email or password.'),
+    );
     renderLogin();
     await userEvent.type(screen.getByLabelText('Email'), 'a@b.co');
     await userEvent.type(screen.getByLabelText('Password'), 'nope-nope-nope');
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid email or password.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Invalid email or password.',
+    );
   });
 });
 ```
@@ -4417,13 +4857,24 @@ describe('RequireAdmin', () => {
   });
 
   it('renders the shell with nav and signs out', async () => {
-    api.getMe.mockResolvedValue({ admin: { id: 'a', email: 'ops@example.com', displayName: null } });
+    api.getMe.mockResolvedValue({
+      admin: { id: 'a', email: 'ops@example.com', displayName: null },
+    });
     api.signOut.mockResolvedValue(undefined);
     renderGuarded();
     expect(await screen.findByText('Secret users')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/users');
-    expect(screen.getByRole('link', { name: 'Anonymous' })).toHaveAttribute('href', '/anonymous');
-    expect(screen.getByRole('link', { name: 'Models' })).toHaveAttribute('href', '/models');
+    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute(
+      'href',
+      '/users',
+    );
+    expect(screen.getByRole('link', { name: 'Anonymous' })).toHaveAttribute(
+      'href',
+      '/anonymous',
+    );
+    expect(screen.getByRole('link', { name: 'Models' })).toHaveAttribute(
+      'href',
+      '/models',
+    );
     expect(screen.getByText('ops@example.com')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(await screen.findByText('Login screen')).toBeInTheDocument();
@@ -4467,7 +4918,9 @@ describe('shared components', () => {
 
   it('renders usage totals', () => {
     render(<UsageTotalsCards usage={makeTotals({ inputTokens: 1200 })} />);
-    expect(screen.getByText('Input tokens').nextSibling).toHaveTextContent('1,200');
+    expect(screen.getByText('Input tokens').nextSibling).toHaveTextContent(
+      '1,200',
+    );
   });
 });
 ```
@@ -4617,7 +5070,10 @@ export function LoginPage() {
           />
         </label>
         {signIn.isError && (
-          <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
+          <p
+            role="alert"
+            className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger"
+          >
             {toErrorMessage(signIn.error)}
           </p>
         )}
@@ -4650,7 +5106,13 @@ const NAV = [
   { to: '/models', label: 'Models' },
 ];
 
-export function AdminShell({ admin, children }: { admin: AdminProfile; children: ReactNode }) {
+export function AdminShell({
+  admin,
+  children,
+}: {
+  admin: AdminProfile;
+  children: ReactNode;
+}) {
   const navigate = useNavigate();
   const signOut = useSignOut();
 
@@ -4743,13 +5205,23 @@ export function Pagination({
     'rounded-lg border border-border px-2.5 py-1 text-sm hover:bg-surface disabled:opacity-50';
   return (
     <div className="flex items-center justify-end gap-2 text-sm text-fg-muted">
-      <button type="button" className={button} disabled={page <= 1} onClick={() => onPage(page - 1)}>
+      <button
+        type="button"
+        className={button}
+        disabled={page <= 1}
+        onClick={() => onPage(page - 1)}
+      >
         Previous
       </button>
       <span>
         Page {page} of {pages}
       </span>
-      <button type="button" className={button} disabled={page >= pages} onClick={() => onPage(page + 1)}>
+      <button
+        type="button"
+        className={button}
+        disabled={page >= pages}
+        onClick={() => onPage(page + 1)}
+      >
         Next
       </button>
     </div>
@@ -4776,15 +5248,32 @@ export function RangeFilter({
 }) {
   const fromId = useId();
   const toId = useId();
-  const input = 'rounded-lg border border-border bg-bg px-2 py-1 text-sm text-fg';
+  const input =
+    'rounded-lg border border-border bg-bg px-2 py-1 text-sm text-fg';
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
-      <label htmlFor={fromId} className="text-fg-muted">From</label>
-      <input id={fromId} type="date" className={input} value={value.from} max={value.to || undefined}
-        onChange={(event) => onChange({ ...value, from: event.target.value })} />
-      <label htmlFor={toId} className="text-fg-muted">To</label>
-      <input id={toId} type="date" className={input} value={value.to} min={value.from || undefined}
-        onChange={(event) => onChange({ ...value, to: event.target.value })} />
+      <label htmlFor={fromId} className="text-fg-muted">
+        From
+      </label>
+      <input
+        id={fromId}
+        type="date"
+        className={input}
+        value={value.from}
+        max={value.to || undefined}
+        onChange={(event) => onChange({ ...value, from: event.target.value })}
+      />
+      <label htmlFor={toId} className="text-fg-muted">
+        To
+      </label>
+      <input
+        id={toId}
+        type="date"
+        className={input}
+        value={value.to}
+        min={value.from || undefined}
+        onChange={(event) => onChange({ ...value, to: event.target.value })}
+      />
     </div>
   );
 }
@@ -4806,9 +5295,14 @@ export function UsageTotalsCards({ usage }: { usage: UsageTotals }) {
   return (
     <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {tiles.map((tile) => (
-        <div key={tile.label} className="rounded-xl border border-border bg-surface p-4">
+        <div
+          key={tile.label}
+          className="rounded-xl border border-border bg-surface p-4"
+        >
           <dt className="text-xs text-fg-subtle">{tile.label}</dt>
-          <dd className="mt-1 text-lg font-semibold tabular-nums text-fg">{tile.value}</dd>
+          <dd className="mt-1 text-lg font-semibold tabular-nums text-fg">
+            {tile.value}
+          </dd>
         </div>
       ))}
     </dl>
@@ -4830,9 +5324,18 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAdmin />}>
-        <Route path="/users" element={<h1 className="text-lg font-semibold">Users</h1>} />
-        <Route path="/anonymous" element={<h1 className="text-lg font-semibold">Anonymous</h1>} />
-        <Route path="/models" element={<h1 className="text-lg font-semibold">Models</h1>} />
+        <Route
+          path="/users"
+          element={<h1 className="text-lg font-semibold">Users</h1>}
+        />
+        <Route
+          path="/anonymous"
+          element={<h1 className="text-lg font-semibold">Anonymous</h1>}
+        />
+        <Route
+          path="/models"
+          element={<h1 className="text-lg font-semibold">Models</h1>}
+        />
       </Route>
       <Route path="*" element={<Navigate to="/users" replace />} />
     </Routes>
@@ -4858,12 +5361,14 @@ git commit -m "feat(admin): scaffold admin app with auth and shell"
 ### Task 12: Admin users & anonymous pages
 
 **Files:**
+
 - Create: `apps/admin/src/features/users/users-page.tsx`, `user-detail-page.tsx`, `users.test.tsx`
 - Create: `apps/admin/src/features/anonymous/anonymous-page.tsx`, `anonymous-detail-page.tsx`, `anonymous.test.tsx`
 - Create: `apps/admin/src/components/usage-detail.tsx` (shared detail body), `apps/admin/src/lib/use-list-state.ts`
 - Modify: `apps/admin/src/app.tsx`
 
 **Interfaces:**
+
 - Consumes: `api.listUsers/getUser/getUserUsage/listAnonymousSessions/getAnonymousSession/getAnonymousSessionUsage`, shared components & format helpers (Task 11).
 - Produces:
   - `useListState()` → `{ page, setPage, range, setRange, rangeQuery }` where `rangeQuery = { from: toIsoStart(range.from), to: toIsoEndExclusive(range.to) }`; changing the range resets `page` to 1. State lives in URL search params (`page`, `from`, `to`, plus page-specific `search`, `sort`) via `useSearchParams` so links/back button work.
@@ -4911,7 +5416,18 @@ describe('users pages', () => {
     api.listUsers.mockResolvedValue({
       items: [
         makeUser(),
-        makeUser({ id: 'u2', email: 'bob@example.com', displayName: null, usage: makeTotals({ requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0, lastActivityAt: null }) }),
+        makeUser({
+          id: 'u2',
+          email: 'bob@example.com',
+          displayName: null,
+          usage: makeTotals({
+            requests: 0,
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            lastActivityAt: null,
+          }),
+        }),
       ],
       page: 1,
       pageSize: 25,
@@ -4925,14 +5441,26 @@ describe('users pages', () => {
     expect(within(table).getByText('ada@example.com')).toBeInTheDocument();
     expect(within(table).getByText('1,200')).toBeInTheDocument();
     expect(within(table).getAllByText('—').length).toBeGreaterThan(0);
-    expect(api.listUsers).toHaveBeenCalledWith({ page: 1, sort: 'lastActivity', search: undefined, from: undefined, to: undefined });
+    expect(api.listUsers).toHaveBeenCalledWith({
+      page: 1,
+      sort: 'lastActivity',
+      search: undefined,
+      from: undefined,
+      to: undefined,
+    });
   });
 
   it('searches, sorts and filters by date, resetting to page 1', async () => {
     renderAt('/users?page=2');
     await screen.findByRole('table', { name: 'Users' });
-    await userEvent.type(screen.getByRole('searchbox', { name: 'Search users' }), 'ada');
-    await userEvent.selectOptions(screen.getByLabelText('Sort by'), 'totalTokens');
+    await userEvent.type(
+      screen.getByRole('searchbox', { name: 'Search users' }),
+      'ada',
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText('Sort by'),
+      'totalTokens',
+    );
     await userEvent.type(screen.getByLabelText('From'), '2026-09-01');
     await waitFor(() =>
       expect(api.listUsers).toHaveBeenLastCalledWith({
@@ -4947,37 +5475,73 @@ describe('users pages', () => {
 
   it('links to user detail and shows totals, breakdown and log', async () => {
     api.getUser.mockResolvedValue({
-      user: { id: 'u1', email: 'ada@example.com', displayName: 'Ada', createdAt: '2026-09-01T10:00:00.000Z' },
+      user: {
+        id: 'u1',
+        email: 'ada@example.com',
+        displayName: 'Ada',
+        createdAt: '2026-09-01T10:00:00.000Z',
+      },
       usage: makeTotals(),
-      breakdown: [{ model: 'qwen2.5:1.5b', kind: 'chat', requests: 3, inputTokens: 1200, outputTokens: 300 }],
+      breakdown: [
+        {
+          model: 'qwen2.5:1.5b',
+          kind: 'chat',
+          requests: 3,
+          inputTokens: 1200,
+          outputTokens: 300,
+        },
+      ],
     });
     api.getUserUsage.mockResolvedValue({
-      items: [{ id: 'r1', createdAt: '2026-09-30T10:00:00.000Z', model: 'qwen2.5:1.5b', kind: 'summary', inputTokens: 40, outputTokens: 4, chatId: null }],
+      items: [
+        {
+          id: 'r1',
+          createdAt: '2026-09-30T10:00:00.000Z',
+          model: 'qwen2.5:1.5b',
+          kind: 'summary',
+          inputTokens: 40,
+          outputTokens: 4,
+          chatId: null,
+        },
+      ],
       page: 1,
       pageSize: 25,
       total: 1,
     });
     renderAt('/users/u1');
-    expect(await screen.findByRole('heading', { name: 'ada@example.com' })).toBeInTheDocument();
-    expect(screen.getByRole('table', { name: 'Usage by model' })).toHaveTextContent('chat');
-    expect(await screen.findByRole('table', { name: 'Usage log' })).toHaveTextContent('summary');
+    expect(
+      await screen.findByRole('heading', { name: 'ada@example.com' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('table', { name: 'Usage by model' }),
+    ).toHaveTextContent('chat');
+    expect(
+      await screen.findByRole('table', { name: 'Usage log' }),
+    ).toHaveTextContent('summary');
   });
 
   it('shows not found for unknown users', async () => {
     const { ApiClientError } = await import('@js-rag-stack/api-client');
-    api.getUser.mockRejectedValue(new ApiClientError(404, 'NOT_FOUND', 'User not found.'));
-    api.getUserUsage.mockRejectedValue(new ApiClientError(404, 'NOT_FOUND', 'User not found.'));
+    api.getUser.mockRejectedValue(
+      new ApiClientError(404, 'NOT_FOUND', 'User not found.'),
+    );
+    api.getUserUsage.mockRejectedValue(
+      new ApiClientError(404, 'NOT_FOUND', 'User not found.'),
+    );
     renderAt('/users/missing');
-    expect(await screen.findByRole('alert')).toHaveTextContent('User not found.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'User not found.',
+    );
   });
 });
 ```
 
 `src/features/anonymous/anonymous.test.tsx` — same structure against `AnonymousPage`/`AnonymousDetailPage` at `/anonymous` and `/anonymous/:sessionId`, mocking `listAnonymousSessions`, `getAnonymousSession`, `getAnonymousSessionUsage`; asserts:
-  - table named `Anonymous sessions` shows `shortId` (`0199a000`) as a link to `/anonymous/<full id>`, the chat count `2`, and `1,200` input tokens;
-  - there is **no** searchbox;
-  - sort select + date range call `listAnonymousSessions` with `{ page: 1, sort, from, to }`;
-  - detail heading is `Session 0199a000` and shows `Created`, `Last seen`, `Expires`, `Chats` values plus the breakdown and log tables.
+
+- table named `Anonymous sessions` shows `shortId` (`0199a000`) as a link to `/anonymous/<full id>`, the chat count `2`, and `1,200` input tokens;
+- there is **no** searchbox;
+- sort select + date range call `listAnonymousSessions` with `{ page: 1, sort, from, to }`;
+- detail heading is `Session 0199a000` and shows `Created`, `Last seen`, `Expires`, `Chats` values plus the breakdown and log tables.
 
 - [ ] **Step 2: Run** `pnpm --filter @js-rag-stack/admin test` — Expected: FAIL.
 
@@ -4993,27 +5557,41 @@ import { toIsoEndExclusive, toIsoStart } from './format';
 export function useListState() {
   const [params, setParams] = useSearchParams();
   const page = Math.max(1, Number(params.get('page')) || 1);
-  const range: DateRangeValue = { from: params.get('from') ?? '', to: params.get('to') ?? '' };
+  const range: DateRangeValue = {
+    from: params.get('from') ?? '',
+    to: params.get('to') ?? '',
+  };
 
-  function update(changes: Record<string, string | number | undefined>, resetPage: boolean) {
-    setParams((current) => {
-      const next = new URLSearchParams(current);
-      for (const [key, value] of Object.entries(changes)) {
-        if (value === undefined || value === '') next.delete(key);
-        else next.set(key, String(value));
-      }
-      if (resetPage) next.delete('page');
-      return next;
-    }, { replace: true });
+  function update(
+    changes: Record<string, string | number | undefined>,
+    resetPage: boolean,
+  ) {
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        for (const [key, value] of Object.entries(changes)) {
+          if (value === undefined || value === '') next.delete(key);
+          else next.set(key, String(value));
+        }
+        if (resetPage) next.delete('page');
+        return next;
+      },
+      { replace: true },
+    );
   }
 
   return {
     page,
     range,
-    rangeQuery: { from: toIsoStart(range.from), to: toIsoEndExclusive(range.to) },
+    rangeQuery: {
+      from: toIsoStart(range.from),
+      to: toIsoEndExclusive(range.to),
+    },
     param: (key: string) => params.get(key) ?? '',
-    setPage: (value: number) => update({ page: value > 1 ? value : undefined }, false),
-    setRange: (value: DateRangeValue) => update({ from: value.from, to: value.to }, true),
+    setPage: (value: number) =>
+      update({ page: value > 1 ? value : undefined }, false),
+    setRange: (value: DateRangeValue) =>
+      update({ from: value.from, to: value.to }, true),
     setParam: (key: string, value: string) => update({ [key]: value }, true),
   };
 }
@@ -5043,7 +5621,12 @@ export function UsersPage() {
   const sortId = useId();
   const search = list.param('search');
   const sort = (list.param('sort') || 'lastActivity') as AdminUserSort;
-  const query = { page: list.page, sort, search: search || undefined, ...list.rangeQuery };
+  const query = {
+    page: list.page,
+    sort,
+    search: search || undefined,
+    ...list.rangeQuery,
+  };
   const users = useQuery({
     queryKey: ['users', query],
     queryFn: () => api.listUsers(query),
@@ -5062,17 +5645,27 @@ export function UsersPage() {
           onChange={(event) => list.setParam('search', event.target.value)}
           className="w-full max-w-xs rounded-lg border border-border bg-bg px-3 py-1.5 text-sm"
         />
-        <label htmlFor={sortId} className="text-sm text-fg-muted">Sort by</label>
-        <select id={sortId} value={sort} onChange={(event) => list.setParam('sort', event.target.value)}
-          className="rounded-lg border border-border bg-bg px-2 py-1 text-sm">
+        <label htmlFor={sortId} className="text-sm text-fg-muted">
+          Sort by
+        </label>
+        <select
+          id={sortId}
+          value={sort}
+          onChange={(event) => list.setParam('sort', event.target.value)}
+          className="rounded-lg border border-border bg-bg px-2 py-1 text-sm"
+        >
           {SORT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
           ))}
         </select>
         <RangeFilter value={list.range} onChange={list.setRange} />
       </div>
       {users.isError && (
-        <p role="alert" className="text-sm text-danger">{toErrorMessage(users.error)}</p>
+        <p role="alert" className="text-sm text-danger">
+          {toErrorMessage(users.error)}
+        </p>
       )}
       <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-left text-sm">
@@ -5090,26 +5683,54 @@ export function UsersPage() {
           </thead>
           <tbody>
             {users.data?.items.map((user) => (
-              <tr key={user.id} className="border-t border-border hover:bg-surface">
+              <tr
+                key={user.id}
+                className="border-t border-border hover:bg-surface"
+              >
                 <td className="px-3 py-2">
-                  <Link to={`/users/${user.id}`} className="text-accent hover:underline">{user.email}</Link>
+                  <Link
+                    to={`/users/${user.id}`}
+                    className="text-accent hover:underline"
+                  >
+                    {user.email}
+                  </Link>
                 </td>
                 <td className="px-3 py-2">{user.displayName ?? '—'}</td>
                 <td className="px-3 py-2">{formatDateTime(user.createdAt)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatNumber(user.usage.requests)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatNumber(user.usage.inputTokens)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatNumber(user.usage.outputTokens)}</td>
-                <td className="px-3 py-2">{formatDateTime(user.usage.lastActivityAt)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {formatNumber(user.usage.requests)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {formatNumber(user.usage.inputTokens)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {formatNumber(user.usage.outputTokens)}
+                </td>
+                <td className="px-3 py-2">
+                  {formatDateTime(user.usage.lastActivityAt)}
+                </td>
               </tr>
             ))}
             {users.data?.items.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-6 text-center text-fg-subtle">No users found.</td></tr>
+              <tr>
+                <td
+                  colSpan={7}
+                  className="px-3 py-6 text-center text-fg-subtle"
+                >
+                  No users found.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
       </div>
       {users.data && (
-        <Pagination page={users.data.page} pageSize={users.data.pageSize} total={users.data.total} onPage={list.setPage} />
+        <Pagination
+          page={users.data.page}
+          pageSize={users.data.pageSize}
+          total={users.data.total}
+          onPage={list.setPage}
+        />
       )}
     </section>
   );
@@ -5121,7 +5742,12 @@ Note the test expects `listUsers` called with `{ page, sort, search, from, to }`
 `src/components/usage-detail.tsx`:
 
 ```tsx
-import type { Paginated, UsageBreakdownItem, UsageRow, UsageTotals } from '@js-rag-stack/contracts';
+import type {
+  Paginated,
+  UsageBreakdownItem,
+  UsageRow,
+  UsageTotals,
+} from '@js-rag-stack/contracts';
 import { Pagination } from './pagination';
 import { UsageBreakdownTable } from './usage-breakdown-table';
 import { UsageLogTable } from './usage-log-table';
@@ -5150,7 +5776,12 @@ export function UsageDetailBody({
         {rows ? (
           <>
             <UsageLogTable rows={rows.items} />
-            <Pagination page={rows.page} pageSize={rows.pageSize} total={rows.total} onPage={onPage} />
+            <Pagination
+              page={rows.page}
+              pageSize={rows.pageSize}
+              total={rows.total}
+              onPage={onPage}
+            />
           </>
         ) : (
           <p className="text-sm text-fg-muted">Loading…</p>
@@ -5181,22 +5812,28 @@ export function UserDetailPage() {
   });
   const rows = useQuery({
     queryKey: ['users', userId, 'usage', list.page, list.rangeQuery],
-    queryFn: () => api.getUserUsage(userId, { page: list.page, ...list.rangeQuery }),
+    queryFn: () =>
+      api.getUserUsage(userId, { page: list.page, ...list.rangeQuery }),
     placeholderData: keepPreviousData,
   });
 
   return (
     <section className="space-y-4">
-      <Link to="/users" className="text-sm text-accent hover:underline">← Users</Link>
+      <Link to="/users" className="text-sm text-accent hover:underline">
+        ← Users
+      </Link>
       {detail.isError && (
-        <p role="alert" className="text-sm text-danger">{toErrorMessage(detail.error)}</p>
+        <p role="alert" className="text-sm text-danger">
+          {toErrorMessage(detail.error)}
+        </p>
       )}
       {detail.data && (
         <>
           <header className="space-y-1">
             <h1 className="text-lg font-semibold">{detail.data.user.email}</h1>
             <p className="text-sm text-fg-muted">
-              {detail.data.user.displayName ?? 'No name'} · joined {formatDateTime(detail.data.user.createdAt)}
+              {detail.data.user.displayName ?? 'No name'} · joined{' '}
+              {formatDateTime(detail.data.user.createdAt)}
             </p>
           </header>
           <RangeFilter value={list.range} onChange={list.setRange} />
@@ -5231,10 +5868,12 @@ git commit -m "feat(admin): users and anonymous usage pages"
 ### Task 13: Admin models page
 
 **Files:**
+
 - Create: `apps/admin/src/features/models/models-page.tsx`, `add-model-form.tsx`, `model-row.tsx`, `models.test.tsx`
 - Modify: `apps/admin/src/app.tsx`
 
 **Interfaces:**
+
 - Consumes: `api.listModels/createModel/updateModel`, `makeModel` fixture.
 - Produces: `/models` route.
 
@@ -5260,7 +5899,12 @@ vi.mock('../../lib/api', async (importOriginal) => ({
 }));
 
 const qwen = makeModel();
-const llama = makeModel({ id: 'm2', name: 'llama3.2:3b', isDefault: false, installed: false });
+const llama = makeModel({
+  id: 'm2',
+  name: 'llama3.2:3b',
+  isDefault: false,
+  installed: false,
+});
 
 function row(name: string) {
   return screen.getByRole('row', { name: new RegExp(name) });
@@ -5276,19 +5920,28 @@ describe('ModelsPage', () => {
     renderWithProviders({ ui: <ModelsPage /> });
     await screen.findByRole('table', { name: 'Models' });
     expect(within(row('qwen2.5')).getByText('Default')).toBeInTheDocument();
-    expect(within(row('llama3.2')).getByText('Not installed')).toBeInTheDocument();
-    expect(within(row('qwen2.5')).getByRole('checkbox', { name: 'Available' })).toBeDisabled();
+    expect(
+      within(row('llama3.2')).getByText('Not installed'),
+    ).toBeInTheDocument();
+    expect(
+      within(row('qwen2.5')).getByRole('checkbox', { name: 'Available' }),
+    ).toBeDisabled();
   });
 
   it('adds a model', async () => {
-    api.createModel.mockResolvedValue(makeModel({ id: 'm3', name: 'phi4:14b', isDefault: false }));
+    api.createModel.mockResolvedValue(
+      makeModel({ id: 'm3', name: 'phi4:14b', isDefault: false }),
+    );
     renderWithProviders({ ui: <ModelsPage /> });
     await screen.findByRole('table', { name: 'Models' });
     await userEvent.type(screen.getByLabelText('Model name'), 'phi4:14b');
     await userEvent.clear(screen.getByLabelText('Max context'));
     await userEvent.type(screen.getByLabelText('Max context'), '16384');
     await userEvent.click(screen.getByRole('button', { name: 'Add model' }));
-    expect(api.createModel).toHaveBeenCalledWith({ name: 'phi4:14b', maxContext: 16384 });
+    expect(api.createModel).toHaveBeenCalledWith({
+      name: 'phi4:14b',
+      maxContext: 16384,
+    });
     expect(api.listModels).toHaveBeenCalledTimes(2);
   });
 
@@ -5296,22 +5949,38 @@ describe('ModelsPage', () => {
     api.updateModel.mockResolvedValue(llama);
     renderWithProviders({ ui: <ModelsPage /> });
     await screen.findByRole('table', { name: 'Models' });
-    await userEvent.click(within(row('llama3.2')).getByRole('checkbox', { name: 'Available' }));
+    await userEvent.click(
+      within(row('llama3.2')).getByRole('checkbox', { name: 'Available' }),
+    );
     expect(api.updateModel).toHaveBeenCalledWith('m2', { isAvailable: false });
-    await userEvent.click(within(row('llama3.2')).getByRole('button', { name: 'Make default' }));
+    await userEvent.click(
+      within(row('llama3.2')).getByRole('button', { name: 'Make default' }),
+    );
     expect(api.updateModel).toHaveBeenCalledWith('m2', { isDefault: true });
-    const context = within(row('llama3.2')).getByRole('spinbutton', { name: 'Max context' });
+    const context = within(row('llama3.2')).getByRole('spinbutton', {
+      name: 'Max context',
+    });
     await userEvent.clear(context);
     await userEvent.type(context, '4096{Enter}');
     expect(api.updateModel).toHaveBeenCalledWith('m2', { maxContext: 4096 });
   });
 
   it('shows server conflicts inline', async () => {
-    api.updateModel.mockRejectedValue(new ApiClientError(409, 'CONFLICT', 'Make the model available before setting it as default.'));
+    api.updateModel.mockRejectedValue(
+      new ApiClientError(
+        409,
+        'CONFLICT',
+        'Make the model available before setting it as default.',
+      ),
+    );
     renderWithProviders({ ui: <ModelsPage /> });
     await screen.findByRole('table', { name: 'Models' });
-    await userEvent.click(within(row('llama3.2')).getByRole('button', { name: 'Make default' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Make the model available before setting it as default.');
+    await userEvent.click(
+      within(row('llama3.2')).getByRole('button', { name: 'Make default' }),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Make the model available before setting it as default.',
+    );
   });
 });
 ```
@@ -5336,7 +6005,8 @@ export function ModelsPage() {
   const models = useQuery({ queryKey: MODELS_KEY, queryFn: api.listModels });
   const refresh = () => queryClient.invalidateQueries({ queryKey: MODELS_KEY });
   const update = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: UpdateModelInput }) => api.updateModel(id, input),
+    mutationFn: ({ id, input }: { id: string; input: UpdateModelInput }) =>
+      api.updateModel(id, input),
     onSettled: refresh,
   });
   const error = models.error ?? update.error;
@@ -5345,7 +6015,10 @@ export function ModelsPage() {
     <section className="space-y-4">
       <h1 className="text-lg font-semibold">Models</h1>
       {error && (
-        <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
+        <p
+          role="alert"
+          className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger"
+        >
           {toErrorMessage(error)}
         </p>
       )}
@@ -5397,12 +6070,17 @@ export function ModelRow({
 }) {
   const [context, setContext] = useState(String(model.maxContext));
   const installed =
-    model.installed === null ? 'Unknown' : model.installed ? 'Installed' : 'Not installed';
+    model.installed === null
+      ? 'Unknown'
+      : model.installed
+        ? 'Installed'
+        : 'Not installed';
 
   const saveContext = (event: FormEvent) => {
     event.preventDefault();
     const value = Number(context);
-    if (Number.isInteger(value) && value !== model.maxContext) onUpdate({ maxContext: value });
+    if (Number.isInteger(value) && value !== model.maxContext)
+      onUpdate({ maxContext: value });
   };
 
   return (
@@ -5421,7 +6099,9 @@ export function ModelRow({
             onBlur={saveContext}
             className="w-28 rounded-lg border border-border bg-bg px-2 py-1 tabular-nums"
           />
-          <span className="sr-only">{formatNumber(model.maxContext)} tokens</span>
+          <span className="sr-only">
+            {formatNumber(model.maxContext)} tokens
+          </span>
         </form>
       </td>
       <td className="px-3 py-2 text-fg-muted">{installed}</td>
@@ -5431,13 +6111,19 @@ export function ModelRow({
           aria-label="Available"
           checked={model.isAvailable}
           disabled={busy || model.isDefault}
-          title={model.isDefault ? 'The default model cannot be made unavailable.' : undefined}
+          title={
+            model.isDefault
+              ? 'The default model cannot be made unavailable.'
+              : undefined
+          }
           onChange={(event) => onUpdate({ isAvailable: event.target.checked })}
         />
       </td>
       <td className="px-3 py-2">
         {model.isDefault ? (
-          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">Default</span>
+          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
+            Default
+          </span>
         ) : (
           <button
             type="button"
@@ -5484,26 +6170,54 @@ export function AddModelForm({ onCreated }: { onCreated: () => void }) {
 
   const input = 'rounded-lg border border-border bg-bg px-3 py-1.5 text-sm';
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-xl border border-border bg-surface p-4">
+    <form
+      onSubmit={submit}
+      className="space-y-3 rounded-xl border border-border bg-surface p-4"
+    >
       <h2 className="text-sm font-semibold">Add model</h2>
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
-          <label htmlFor={nameId} className="text-xs text-fg-muted">Model name</label>
-          <input id={nameId} required maxLength={200} placeholder="llama3.2:3b" value={name}
-            onChange={(event) => setName(event.target.value)} className={input} />
+          <label htmlFor={nameId} className="text-xs text-fg-muted">
+            Model name
+          </label>
+          <input
+            id={nameId}
+            required
+            maxLength={200}
+            placeholder="llama3.2:3b"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className={input}
+          />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={contextId} className="text-xs text-fg-muted">Max context</label>
-          <input id={contextId} type="number" required min={512} max={1_048_576} step={512} value={maxContext}
-            onChange={(event) => setMaxContext(event.target.value)} className={`${input} w-32`} />
+          <label htmlFor={contextId} className="text-xs text-fg-muted">
+            Max context
+          </label>
+          <input
+            id={contextId}
+            type="number"
+            required
+            min={512}
+            max={1_048_576}
+            step={512}
+            value={maxContext}
+            onChange={(event) => setMaxContext(event.target.value)}
+            className={`${input} w-32`}
+          />
         </div>
-        <button type="submit" disabled={create.isPending}
-          className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg hover:bg-accent-hover disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={create.isPending}
+          className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg hover:bg-accent-hover disabled:opacity-60"
+        >
           Add model
         </button>
       </div>
       {create.isError && (
-        <p role="alert" className="text-sm text-danger">{toErrorMessage(create.error)}</p>
+        <p role="alert" className="text-sm text-danger">
+          {toErrorMessage(create.error)}
+        </p>
       )}
     </form>
   );
@@ -5528,6 +6242,7 @@ git commit -m "feat(admin): models management page"
 ### Task 14: Docs, env, and full verification
 
 **Files:**
+
 - Modify: `.env.example`, `README.md`, `.github/workflows/ci.yml` (only if it lists apps explicitly)
 
 - [ ] **Step 1: Env & docs.**
