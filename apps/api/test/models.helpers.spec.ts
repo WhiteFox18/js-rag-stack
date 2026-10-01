@@ -27,11 +27,11 @@ describe('ModelAdministrationService.update conflicts', () => {
     updated_at: new Date(),
   };
 
-  function service(failure: unknown) {
+  function service(failure: Error) {
     return new ModelAdministrationService(
       {
         findById: () => Promise.resolve(model),
-        updateWithDefault: () => Promise.reject(failure as Error),
+        updateWithDefault: () => Promise.reject(failure),
       } as never,
       { listInstalledModels: () => Promise.resolve([]) } as never,
     );
