@@ -67,6 +67,31 @@ includes authentication cookies and obtains a CSRF token before mutation
 requests. Sign-up, sign-in, refresh, sign-out, and session revocation can be
 tested directly with **Try it out** without manually configuring headers.
 
+## Admin dashboard
+
+A separate admin app (`apps/admin`) runs at <http://localhost:5174> with its
+own admin accounts and auth, configured by `ADMIN_ORIGIN`, `ADMIN_JWT_SECRET`
+(replace in production), `ADMIN_ACCESS_TTL` and `ADMIN_REFRESH_TTL`.
+
+```bash
+pnpm admin
+pnpm --filter @js-rag-stack/api admin:create --email you@example.com [--name "You"]
+```
+
+`admin:create` prompts twice for a password of at least 12 characters and needs
+an interactive terminal; re-running it for an existing email resets the password.
+
+Pages:
+
+- **Users**: registered users and their token usage.
+- **Anonymous**: anonymous sessions that have chats or usage.
+- **Models**: add models, mark them available or unavailable, and choose the
+  default. `OLLAMA_DEFAULT_MODEL` only seeds the default on first boot.
+
+Usage is logged per Ollama call (chat replies and summaries) with the input and
+output token counts reported by Ollama. Anonymous usage moves to the user on
+sign-up or sign-in.
+
 ## Quality commands
 
 ```bash
@@ -87,6 +112,7 @@ parser for the SPA.
 
 - `apps/api`: NestJS HTTP API
 - `apps/web`: React SPA
+- `apps/admin`: admin dashboard SPA
 - `packages/contracts`: framework-neutral transport types
 - `packages/api-client`: generated-client placeholder for Phase 4
 - `packages/eslint-config`: shared ESLint flat configuration
