@@ -291,4 +291,33 @@ describe('ChatPage prompt navigator', () => {
     expect(entry).toHaveAttribute('aria-current', 'true');
     expect(document.activeElement).toHaveAttribute('data-prompt-id', 'u1');
   });
+
+  it('blocks sending in a chat whose model was disabled until another is chosen', async () => {
+    api.getChat.mockResolvedValue({
+      ...makeChat({
+        id: 'c1',
+        selectedModel: 'old:1b',
+        selectedModelAvailable: false,
+      }),
+      nextCursor: null,
+      messages: [],
+      context: {
+        usedTokens: null,
+        maxTokens: 8192,
+        summary: null,
+        summarizedThroughMessageId: null,
+      },
+    });
+    renderPage('/chats/c1');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'old:1b is no longer available — choose another model',
+    );
+    expect(screen.getByRole('textbox')).toBeDisabled();
+    await userEvent.selectOptions(
+      screen.getByLabelText('Model'),
+      'qwen2.5:1.5b',
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeEnabled();
+  });
 });

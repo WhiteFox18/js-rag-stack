@@ -6,6 +6,10 @@ import type {
   HealthResponse,
   ModelsResponse,
 } from '@js-rag-stack/contracts';
+import { createHttp, toApiError, toQuery } from './http.js';
+
+export { ApiClientError, type ApiErrorBody } from './http.js';
+export * from './admin.js';
 
 export interface ApiClientOptions {
   baseUrl: string;
@@ -86,45 +90,15 @@ export interface StreamMessageOptions {
   onEvent: (event: ChatStreamEvent) => void;
 }
 
-export interface ApiErrorBody {
-  error?: { code?: string; message?: string; requestId?: string };
-}
-
-export class ApiClientError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-    message: string,
-    readonly requestId?: string,
-  ) {
-    super(message);
-  }
-}
-
 export function createApiClient({
   baseUrl,
   fetchImpl = fetch,
 }: ApiClientOptions) {
-  const root = baseUrl.replace(/\/$/, '');
-
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetchImpl(`${root}/api/v1${path}`, {
-      ...init,
-      credentials: 'include',
-      headers: { 'content-type': 'application/json', ...init.headers },
-    });
-    if (!response.ok) throw await toApiError(response);
-    if (response.status === 204) return undefined as T;
-    return (await response.json()) as T;
-  }
-
-  async function mutation<T>(path: string, init: RequestInit): Promise<T> {
-    const csrf = await request<{ csrfToken: string }>('/auth/csrf');
-    return request<T>(path, {
-      ...init,
-      headers: { ...init.headers, 'X-CSRF-Token': csrf.csrfToken },
-    });
-  }
+  const { root, request, mutation } = createHttp({
+    baseUrl,
+    fetchImpl,
+    csrfPath: '/auth/csrf',
+  });
 
   return {
     getHealth: () => request<HealthResponse>('/health'),
@@ -244,25 +218,4 @@ function parseSseFrame(frame: string): ChatStreamEvent | undefined {
     event: eventName,
     data: JSON.parse(data.join('\n')) as unknown,
   } as ChatStreamEvent;
-}
-
-function toQuery(
-  params: Record<string, string | number | boolean | undefined>,
-): string {
-  const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined) query.set(key, String(value));
-  }
-  const serialized = query.toString();
-  return serialized ? `?${serialized}` : '';
-}
-
-async function toApiError(response: Response): Promise<ApiClientError> {
-  const body = (await response.json().catch(() => ({}))) as ApiErrorBody;
-  return new ApiClientError(
-    response.status,
-    body.error?.code ?? 'HTTP_ERROR',
-    body.error?.message ?? `Request failed with status ${response.status}.`,
-    body.error?.requestId,
-  );
 }

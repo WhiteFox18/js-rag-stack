@@ -13,6 +13,7 @@ describe('ModelSelector', () => {
           { name: 'b', default: false, maxContext: 8192 },
         ]}
         value="a"
+        unavailableModel={null}
         disabled={false}
         onChange={onChange}
       />,
@@ -29,10 +30,30 @@ describe('ModelSelector', () => {
       <ModelSelector
         models={[]}
         value={null}
+        unavailableModel={null}
         disabled={false}
         onChange={vi.fn()}
       />,
     );
     expect(screen.getByRole('status')).toHaveTextContent('No models available');
+  });
+
+  it('asks the user to switch when the chat model is unavailable', async () => {
+    const onChange = vi.fn();
+    render(
+      <ModelSelector
+        models={[{ name: 'a', default: true, maxContext: 8192 }]}
+        value="old:1b"
+        unavailableModel="old:1b"
+        disabled={false}
+        onChange={onChange}
+      />,
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'old:1b is no longer available — choose another model',
+    );
+    expect(screen.getByLabelText('Model')).toHaveValue('');
+    await userEvent.selectOptions(screen.getByLabelText('Model'), 'a');
+    expect(onChange).toHaveBeenCalledWith('a');
   });
 });

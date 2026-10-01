@@ -65,6 +65,13 @@ export function ChatPage() {
     defaultModel;
   const activeModelInfo =
     modelList.find((model) => model.name === activeModel) ?? null;
+  const hasOverride = override?.scope === scope;
+  const chatModelDisabled =
+    !hasOverride && chat.data?.pages[0]?.selectedModelAvailable === false;
+  const unavailableModel =
+    activeModel && (chatModelDisabled || (models.isSuccess && !activeModelInfo))
+      ? activeModel
+      : null;
   const isBusy = pending?.status === 'streaming';
   const messages = mergeMessages(
     chat.data?.pages.map((page) => page.messages) ?? [],
@@ -83,7 +90,7 @@ export function ChatPage() {
   });
 
   const handleSend = async (content: string): Promise<boolean> => {
-    if (!activeModel) return false;
+    if (!activeModel || unavailableModel) return false;
     scroll.scrollToBottom();
     setSendError(null);
     dismissError();
@@ -125,6 +132,7 @@ export function ChatPage() {
         <ModelSelector
           models={modelList}
           value={activeModel}
+          unavailableModel={unavailableModel}
           disabled={isBusy}
           onChange={(model) => setOverride({ scope, model })}
         />
@@ -209,7 +217,7 @@ export function ChatPage() {
           <Composer
             draftKey={`draft:${scope}`}
             isBusy={isBusy}
-            disabled={!activeModel}
+            disabled={!activeModel || Boolean(unavailableModel)}
             insertion={insertion}
             contextMeter={
               <ContextMeter
