@@ -136,3 +136,38 @@ export interface AdminSignInInput {
   email: string;
   password: string;
 }
+
+export type UsageKind = 'chat' | 'summary';
+
+export interface UsageTotals {
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  lastActivityAt: string | null;
+}
+
+export interface UsageBreakdownItem {
+  model: string;
+  kind: UsageKind;
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface UsageRow {
+  id: string;
+  createdAt: string;
+  model: string;
+  kind: UsageKind;
+  inputTokens: number;
+  outputTokens: number;
+  chatId: string | null;
+}
+
+export interface Paginated<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
