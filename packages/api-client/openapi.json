@@ -1163,6 +1163,127 @@
         ]
       }
     },
+    "/api/v1/admin/chats/{id}": {
+      "get": {
+        "operationId": "AdminChatsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminChatDetailDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "admin_access_token": []
+          }
+        ],
+        "summary": "Chat metadata and full transcript",
+        "tags": [
+          "admin-chats"
+        ]
+      }
+    },
+    "/api/v1/admin/chats/{id}/summary": {
+      "get": {
+        "operationId": "AdminChatsController_getSummary",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminChatSummaryStateDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "admin_access_token": []
+          }
+        ],
+        "summary": "Cached chat summary and staleness",
+        "tags": [
+          "admin-chats"
+        ]
+      },
+      "post": {
+        "operationId": "AdminChatsController_refreshSummary",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminChatSummaryStateDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": ""
+          },
+          "502": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "admin_access_token": []
+          }
+        ],
+        "summary": "Generate or refresh the chat summary",
+        "tags": [
+          "admin-chats"
+        ]
+      }
+    },
     "/api/v1/health": {
       "get": {
         "operationId": "HealthController_getHealth",
@@ -1839,7 +1960,8 @@
             "type": "string",
             "enum": [
               "chat",
-              "summary"
+              "summary",
+              "admin_summary"
             ]
           },
           "requests": {
@@ -1899,7 +2021,8 @@
             "type": "string",
             "enum": [
               "chat",
-              "summary"
+              "summary",
+              "admin_summary"
             ]
           },
           "inputTokens": {
@@ -2156,6 +2279,184 @@
             "type": "boolean"
           }
         }
+      },
+      "AdminChatOwnerDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "user",
+              "anonymous"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id"
+        ]
+      },
+      "AdminChatInfoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "archivedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "owner": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdminChatOwnerDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "model",
+          "createdAt",
+          "lastMessageAt",
+          "archivedAt",
+          "owner"
+        ]
+      },
+      "AdminChatMessageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "streaming",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "promptTokens": {
+            "type": "number",
+            "nullable": true
+          },
+          "completionTokens": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "status",
+          "content",
+          "model",
+          "createdAt",
+          "promptTokens",
+          "completionTokens"
+        ]
+      },
+      "AdminChatDetailDto": {
+        "type": "object",
+        "properties": {
+          "chat": {
+            "$ref": "#/components/schemas/AdminChatInfoDto"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminChatMessageDto"
+            }
+          }
+        },
+        "required": [
+          "chat",
+          "messages"
+        ]
+      },
+      "AdminChatSummaryStateDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "nullable": true
+          },
+          "summarizedThroughMessageId": {
+            "type": "string",
+            "nullable": true
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "generatedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "pendingMessages": {
+            "type": "number"
+          },
+          "generating": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "content",
+          "summarizedThroughMessageId",
+          "model",
+          "generatedAt",
+          "stale",
+          "pendingMessages",
+          "generating"
+        ]
       },
       "HealthResponseDto": {
         "type": "object",

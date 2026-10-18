@@ -2,6 +2,8 @@ import type {
   AdminAnonymousDetail,
   AdminAnonymousListItem,
   AdminAuthResponse,
+  AdminChatDetail,
+  AdminChatSummaryState,
   AdminModel,
   AdminModelsResponse,
   AdminSignInInput,
@@ -84,6 +86,17 @@ export function createAdminApiClient({
     getAnonymousSessionUsage: (sessionId: string, query: UsagePageQuery = {}) =>
       get<Paginated<UsageRow>>(
         `/admin/anonymous-sessions/${id(sessionId)}/usage${toQuery(query)}`,
+      ),
+    getChat: (chatId: string) =>
+      get<AdminChatDetail>(`/admin/chats/${id(chatId)}`),
+    getChatSummary: (chatId: string) =>
+      get<AdminChatSummaryState>(`/admin/chats/${id(chatId)}/summary`),
+    refreshChatSummary: (chatId: string) =>
+      authed(() =>
+        http.mutation<AdminChatSummaryState>(
+          `/admin/chats/${id(chatId)}/summary`,
+          { method: 'POST' },
+        ),
       ),
     listModels: () => get<AdminModelsResponse>('/admin/models'),
     createModel: (input: CreateModelInput) =>

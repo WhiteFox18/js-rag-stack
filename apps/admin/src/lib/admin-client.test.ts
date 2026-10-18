@@ -60,4 +60,32 @@ describe('createAdminApiClient', () => {
       '/api/v1/admin/users?sort=totalTokens&page=2',
     );
   });
+
+  it('refreshes a chat summary with POST and the CSRF header', async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(json(200, { csrfToken: 'tok' }))
+      .mockResolvedValueOnce(json(200, { status: 'ready' }));
+    const client = createAdminApiClient({ baseUrl: '', fetchImpl });
+    await client.refreshChatSummary('c1');
+    expect(String(fetchImpl.mock.calls[1]?.[0] as string)).toBe(
+      '/api/v1/admin/chats/c1/summary',
+    );
+    const init = fetchImpl.mock.calls[1]?.[1];
+    expect(init?.method).toBe('POST');
+    expect(new Headers(init?.headers).get('X-CSRF-Token')).toBe('tok');
+  });
+
+  it('gets a chat and its summary with GET', async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockImplementation(() => Promise.resolve(json(200, {})));
+    const client = createAdminApiClient({ baseUrl: '', fetchImpl });
+    await client.getChat('c/1');
+    await client.getChatSummary('c1');
+    expect(
+      fetchImpl.mock.calls.map((call) => String(call[0] as string)),
+    ).toEqual(['/api/v1/admin/chats/c%2F1', '/api/v1/admin/chats/c1/summary']);
+    expect(fetchImpl.mock.calls[1]?.[1]?.method ?? 'GET').toBe('GET');
+  });
 });
