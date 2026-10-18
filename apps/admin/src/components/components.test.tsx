@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { makeTotals } from '../test/fixtures';
 import { renderWithProviders } from '../test/render';
+import { MarkdownContent } from './markdown';
 import { Pagination } from './pagination';
 import { RangeFilter } from './range-filter';
 import { UsageLogTable } from './usage-log-table';
@@ -29,6 +30,22 @@ describe('shared components', () => {
     render(<RangeFilter value={{ from: '', to: '' }} onChange={onChange} />);
     await userEvent.type(screen.getByLabelText('From'), '2026-09-01');
     expect(onChange).toHaveBeenLastCalledWith({ from: '2026-09-01', to: '' });
+  });
+
+  it('renders markdown formatting', () => {
+    render(
+      <MarkdownContent
+        content={
+          'Some **bold** text\n\n- one\n- two\n\n[docs](https://example.com)'
+        }
+      />,
+    );
+    expect(screen.getByText('bold').tagName).toBe('STRONG');
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'docs' })).toHaveAttribute(
+      'target',
+      '_blank',
+    );
   });
 
   it('renders usage totals', () => {

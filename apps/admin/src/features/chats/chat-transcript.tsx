@@ -1,4 +1,5 @@
 import type { AdminChatMessage } from '@js-rag-stack/contracts';
+import { MarkdownContent } from '../../components/markdown';
 import { formatDateTime } from '../../lib/format';
 
 export function ChatTranscript({ messages }: { messages: AdminChatMessage[] }) {
@@ -28,9 +29,13 @@ export function ChatTranscript({ messages }: { messages: AdminChatMessage[] }) {
               </span>
             )}
           </div>
-          <p className="whitespace-pre-wrap break-words text-sm">
-            {message.content}
-          </p>
+          {message.role === 'assistant' ? (
+            <MarkdownContent content={message.content} className="text-sm" />
+          ) : (
+            <p className="whitespace-pre-wrap break-words text-sm">
+              {message.content}
+            </p>
+          )}
         </li>
       ))}
     </ol>
