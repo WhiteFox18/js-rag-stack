@@ -76,7 +76,7 @@ export function AdminChatPage() {
               {formatDateTime(query.data.chat.lastMessageAt)}
             </p>
           </header>
-          <ChatSummaryCard chatId={chatId} />
+          <ChatSummaryCard key={chatId} chatId={chatId} />
           <ChatTranscript messages={query.data.messages} />
         </>
       )}

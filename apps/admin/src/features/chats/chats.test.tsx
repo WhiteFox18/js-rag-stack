@@ -1,7 +1,7 @@
 import { act, screen } from '@testing-library/react';
 import { ApiClientError } from '@js-rag-stack/api-client';
 import userEvent from '@testing-library/user-event';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeChatDetail, makeSummaryState } from '../../test/fixtures';
 import { renderWithProviders } from '../../test/render';
@@ -233,10 +233,10 @@ describe('ChatSummaryCard', () => {
     });
     renderPage();
     expect(await screen.findByText('Second text.')).toBeInTheDocument();
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(api.refreshChatSummary).toHaveBeenCalledTimes(1);
+    await new Promise((r) => setTimeout(r, 100));
+    await vi.waitFor(() =>
+      expect(api.refreshChatSummary).toHaveBeenCalledTimes(1),
+    );
   });
 
   it('polls while generating and shows the result', async () => {
@@ -309,5 +309,78 @@ describe('ChatSummaryCard', () => {
     expect(
       await screen.findByText('Nothing to summarize yet.'),
     ).toBeInTheDocument();
+  });
+
+  it('re-arms auto-refresh after a 409 once the poll shows idle and stale', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api.getChatSummary
+      .mockResolvedValueOnce(
+        makeSummaryState({ stale: true, pendingMessages: 4 }),
+      )
+      .mockResolvedValue(
+        makeSummaryState({
+          stale: true,
+          pendingMessages: 4,
+          generating: false,
+        }),
+      );
+    api.refreshChatSummary
+      .mockRejectedValueOnce(
+        new ApiClientError(409, 'SUMMARY_IN_PROGRESS', 'busy'),
+      )
+      .mockResolvedValue(fresh());
+    renderPage();
+    await vi.waitFor(() =>
+      expect(api.refreshChatSummary).toHaveBeenCalledTimes(1),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(
+      await screen.findByText('The user plans a trip.'),
+    ).toBeInTheDocument();
+    expect(api.refreshChatSummary).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows a hint when stale but idle', async () => {
+    const still = fresh({ stale: true, pendingMessages: 2 });
+    api.getChatSummary.mockResolvedValue(still);
+    api.refreshChatSummary.mockResolvedValue(still);
+    renderPage();
+    expect(
+      await screen.findByText('2 new messages since this summary.'),
+    ).toBeInTheDocument();
+    expect(api.refreshChatSummary).toHaveBeenCalledTimes(1);
+  });
+
+  it('resets summary state when navigating to another chat', async () => {
+    const pending = makeSummaryState({ stale: true, pendingMessages: 4 });
+    api.getChatSummary.mockResolvedValue(pending);
+    api.refreshChatSummary
+      .mockResolvedValueOnce({ ...pending, content: 'c1 text' })
+      .mockResolvedValueOnce(fresh({ content: 'c2 text' }));
+    function Nav() {
+      const navigate = useNavigate();
+      return (
+        <button type="button" onClick={() => void navigate('/chats/c2')}>
+          go
+        </button>
+      );
+    }
+    renderWithProviders({
+      route: '/chats/c1',
+      ui: (
+        <>
+          <Nav />
+          <Routes>
+            <Route path="/chats/:chatId" element={<AdminChatPage />} />
+          </Routes>
+        </>
+      ),
+    });
+    expect(await screen.findByText('c1 text')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'go' }));
+    expect(await screen.findByText('c2 text')).toBeInTheDocument();
+    expect(api.refreshChatSummary).toHaveBeenCalledTimes(2);
   });
 });
