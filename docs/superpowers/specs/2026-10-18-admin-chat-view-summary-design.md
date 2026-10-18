@@ -104,7 +104,7 @@ a value added in the same transaction).
   filter and mapping now inside `loadFromDatabase`. `ChatHistoryService`
   calls it; behaviour unchanged.
 - `context-window.helpers.ts`: export a pure `formatTranscript(entries,
-  maxEntryChars)` (extracted from `buildSummaryRequest`, output unchanged).
+maxEntryChars)` (extracted from `buildSummaryRequest`, output unchanged).
   The admin summary does not reuse `buildSummaryRequest`; it has its own
   `buildAdminSummaryRequest` (see §5.4). Live testing with qwen2.5:1.5b showed
   the shared "notes" framing made the model echo the transcript.
@@ -172,9 +172,9 @@ pendingMessages, generating }`; `generating` = lock key exists.
 5. `content = previous?.content ?? null`. For each chunk of
    `chunkEntries({ entries: pending, budget: budget.chunkTokens, … })`:
    - `ollama.complete({ model: model.name, messages:
-     buildAdminSummaryRequest({ previousSummary: content, entries: chunk,
-     maxEntryChars }), contextTokens: model.max_context,
-     maxTokens: min(budget.summaryMaxTokens, 400), signal })`.
+buildAdminSummaryRequest({ previousSummary: content, entries: chunk,
+maxEntryChars }), contextTokens: model.max_context,
+maxTokens: min(budget.summaryMaxTokens, 400), signal })`.
      `buildAdminSummaryRequest` (in `admin-chat-summary.helpers.ts`) uses
      `ADMIN_SUMMARY_INSTRUCTIONS` as system prompt and wraps the
      `formatTranscript` output in `<transcript>` tags (previous overview in
@@ -308,7 +308,7 @@ label for `admin_summary` is "admin summary".
 | GET loading                           | Skeleton lines (`animate-pulse`, respects reduced motion)                 |
 | No summary, generating / POST pending | Skeleton + spinner + "Generating summary…" (`role="status"`, `aria-live`) |
 | Summary, stale, updating              | Old text dimmed + spinner + "Updating with N new messages…"               |
-| Ready                                 | Text + "Updated ‹date› · ‹model›"                              |
+| Ready                                 | Text + "Updated ‹date› · ‹model›"                                         |
 | Error                                 | Old text if any + alert with message + "Retry"                            |
 | `content === null && !stale`          | "Nothing to summarize yet."                                               |
 
