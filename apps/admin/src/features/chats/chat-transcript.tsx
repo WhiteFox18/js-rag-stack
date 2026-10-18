@@ -20,9 +20,9 @@ export function ChatTranscript({ messages }: { messages: AdminChatMessage[] }) {
             </span>
             {message.status !== 'completed' && (
               <span
-                className={
+                className={`rounded border border-border px-1.5 py-0.5 ${
                   message.status === 'failed' ? 'text-danger' : 'text-fg-subtle'
-                }
+                }`}
               >
                 {message.status}
               </span>
