@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { toAdminChatDetail } from '../src/admin/chats/admin-chats.helpers';
 import {
   escapeLike,
   toPageRequest,
@@ -85,5 +86,54 @@ describe('admin query helpers', () => {
 
   it('escapes LIKE wildcards', () => {
     expect(escapeLike('50%_off\\')).toBe('50\\%\\_off\\\\');
+  });
+});
+
+describe('toAdminChatDetail', () => {
+  const base = {
+    id: 'c1',
+    title: 'T',
+    created_at: new Date('2026-01-01T00:00:00.000Z'),
+    last_message_at: new Date('2026-01-02T00:00:00.000Z'),
+    archived_at: null,
+    selected_model: { name: 'qwen2.5:1.5b' },
+    user: null,
+    anonymous_session_id: null,
+    messages: [
+      {
+        id: 'm1',
+        role: 'ASSISTANT' as const,
+        status: 'FAILED' as const,
+        content: 'x',
+        model: null,
+        created_at: new Date('2026-01-01T00:00:01.000Z'),
+        prompt_tokens: 1,
+        completion_tokens: null,
+      },
+    ],
+  };
+
+  it('maps user owner, enums and dates', () => {
+    const d = toAdminChatDetail({
+      ...base,
+      user: { id: 'u1', email: 'a@b.c' },
+    });
+    expect(d.chat.owner).toEqual({ type: 'user', id: 'u1', email: 'a@b.c' });
+    expect(d.chat.model).toBe('qwen2.5:1.5b');
+    expect(d.chat.createdAt).toBe('2026-01-01T00:00:00.000Z');
+    expect(d.messages[0]).toMatchObject({
+      role: 'assistant',
+      status: 'failed',
+      createdAt: '2026-01-01T00:00:01.000Z',
+      promptTokens: 1,
+      completionTokens: null,
+    });
+  });
+
+  it('maps anonymous and null owners', () => {
+    expect(
+      toAdminChatDetail({ ...base, anonymous_session_id: 's1' }).chat.owner,
+    ).toEqual({ type: 'anonymous', id: 's1' });
+    expect(toAdminChatDetail(base).chat.owner).toBeNull();
   });
 });
