@@ -66,7 +66,7 @@ export function ChatSummaryCard({ chatId }: { chatId: string }) {
         )}
         {!isUpdating && content !== null && state && (
           <p className="text-xs text-fg-subtle">
-            Summarized through {formatDateTime(state.generatedAt)}
+            Updated {formatDateTime(state.generatedAt)}
             {state.model ? ` · ${state.model}` : ''}
           </p>
         )}

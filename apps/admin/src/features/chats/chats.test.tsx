@@ -164,9 +164,7 @@ describe('ChatSummaryCard', () => {
     expect(
       await screen.findByText('The user plans a trip.'),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Summarized through/)).toHaveTextContent(
-      'qwen2.5:1.5b',
-    );
+    expect(screen.getByText(/^Updated /)).toHaveTextContent('qwen2.5:1.5b');
     expect(api.refreshChatSummary).not.toHaveBeenCalled();
   });
 

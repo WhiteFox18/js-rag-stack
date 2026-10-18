@@ -103,9 +103,11 @@ a value added in the same transaction).
   `toHistoryEntries(messages: Message[]): ChatHistoryEntry[]` that applies the
   filter and mapping now inside `loadFromDatabase`. `ChatHistoryService`
   calls it; behaviour unchanged.
-- `context-window.helpers.ts`: `buildSummaryRequest` gains an optional
-  `instructions` parameter (default: the existing `SUMMARY_INSTRUCTIONS`), so
-  the context summary is unchanged and the admin summary supplies its own.
+- `context-window.helpers.ts`: export a pure `formatTranscript(entries,
+  maxEntryChars)` (extracted from `buildSummaryRequest`, output unchanged).
+  The admin summary does not reuse `buildSummaryRequest`; it has its own
+  `buildAdminSummaryRequest` (see §5.4). Live testing with qwen2.5:1.5b showed
+  the shared "notes" framing made the model echo the transcript.
   `chunkEntries`, `getContextBudget`, `estimateMessageTokens`,
   `isDegenerateSummary`, `entriesAfter` are reused as-is.
 
@@ -169,14 +171,23 @@ pendingMessages, generating }`; `generating` = lock key exists.
    settings as the context window).
 5. `content = previous?.content ?? null`. For each chunk of
    `chunkEntries({ entries: pending, budget: budget.chunkTokens, … })`:
-   - `ollama.complete({ model: model.name, messages: buildSummaryRequest({
-previousSummary: content, entries: chunk, maxEntryChars, instructions:
-ADMIN_SUMMARY_INSTRUCTIONS }), contextTokens: model.max_context,
-maxTokens: min(budget.summaryMaxTokens, 400), signal })`
+   - `ollama.complete({ model: model.name, messages:
+     buildAdminSummaryRequest({ previousSummary: content, entries: chunk,
+     maxEntryChars }), contextTokens: model.max_context,
+     maxTokens: min(budget.summaryMaxTokens, 400), signal })`.
+     `buildAdminSummaryRequest` (in `admin-chat-summary.helpers.ts`) uses
+     `ADMIN_SUMMARY_INSTRUCTIONS` as system prompt and wraps the
+     `formatTranscript` output in `<transcript>` tags (previous overview in
+     `<overview>` tags), followed by a closing instruction that the transcript
+     is data to describe, not to answer, continue or repeat. Live testing with
+     qwen2.5:1.5b showed the shared context-notes framing made the model echo
+     the transcript.
    - record usage `{ principal: null, chatId, modelId: model.id,
-kind: 'ADMIN_SUMMARY', … }` before the degenerate check;
-   - `content = result.content.trim()`; degenerate → throw
-     (`502 SUMMARY_FAILED`, "The model returned an empty summary.");
+kind: 'ADMIN_SUMMARY', … }` before the degenerate/echo check;
+   - `content = cleanAdminSummary(result.content)` (strips stray
+     `<overview>`/`<transcript>` tags, trims); degenerate or echoed
+     (`isEchoedSummary`: starts with `User:`/`Assistant:` or equals a pending
+     entry's content) → throw (`502 SUMMARY_FAILED`);
    - extend the lock.
 6. Upsert `admin_chat_summary` (`content`, `summarized_through_message_id` =
    last pending entry id, `model_id`, `token_count` = reported completion
@@ -297,7 +308,7 @@ label for `admin_summary` is "admin summary".
 | GET loading                           | Skeleton lines (`animate-pulse`, respects reduced motion)                 |
 | No summary, generating / POST pending | Skeleton + spinner + "Generating summary…" (`role="status"`, `aria-live`) |
 | Summary, stale, updating              | Old text dimmed + spinner + "Updating with N new messages…"               |
-| Ready                                 | Text + "Summarized through ‹date› · ‹model›"                              |
+| Ready                                 | Text + "Updated ‹date› · ‹model›"                              |
 | Error                                 | Old text if any + alert with message + "Retry"                            |
 | `content === null && !stale`          | "Nothing to summarize yet."                                               |
 
@@ -309,7 +320,8 @@ Styling follows existing admin Tailwind tokens (`text-fg-muted`, `border-border`
 API (Jest):
 
 - Helpers: `toHistoryEntries` (moved logic, unchanged results);
-  `buildSummaryRequest` default vs custom instructions; `toSummaryState`
+  `formatTranscript`, `buildAdminSummaryRequest` (both branches),
+  `cleanAdminSummary`, `isEchoedSummary`; `toSummaryState`
   (no summary, fresh, stale with N pending, missing through-message).
 - `AdminChatSummaryService` with mocked Ollama / repository / lock:
   fresh → no `complete` call; no summary → summarizes all entries; stale →
