@@ -1,3 +1,5 @@
+import type { UsageKind } from '@js-rag-stack/contracts';
+
 const numberFormat = new Intl.NumberFormat('en-US');
 const dateTimeFormat = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',
@@ -10,6 +12,10 @@ export function formatNumber(value: number): string {
 
 export function formatDateTime(iso: string | null): string {
   return iso ? dateTimeFormat.format(new Date(iso)) : '—';
+}
+
+export function formatUsageKind(kind: UsageKind): string {
+  return kind === 'admin_summary' ? 'admin summary' : kind;
 }
 
 export function shortId(id: string): string {
