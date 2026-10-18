@@ -12,6 +12,8 @@ import {
   toPromptMessages,
 } from '../src/chats/context-window.helpers';
 import type { ChatHistoryEntry } from '../src/chats/chats.types';
+import { toHistoryEntries } from '../src/chats/chats.helpers';
+import type { Message } from '../src/generated/prisma/client';
 
 const settings = {
   summarizeAtRatio: 0.75,
@@ -199,5 +201,69 @@ describe('context window helpers', () => {
       { role: 'assistant', content: 'a' },
       { role: 'user', content: 'now' },
     ]);
+  });
+});
+
+function message(
+  id: string,
+  role: 'USER' | 'ASSISTANT',
+  status: Message['status'],
+): Message {
+  return {
+    id,
+    chat_id: 'c1',
+    role,
+    status,
+    content: id,
+    model: role === 'ASSISTANT' ? 'qwen2.5:1.5b' : null,
+    token_count: null,
+    token_count_source: 'UNKNOWN',
+    prompt_tokens: null,
+    completion_tokens: null,
+    total_tokens: null,
+    finish_reason: null,
+    error_code: null,
+    created_at: new Date(0),
+    updated_at: new Date(0),
+  };
+}
+
+describe('toHistoryEntries', () => {
+  it('keeps only completed turns', () => {
+    const messages = [
+      message('u1', 'USER', 'COMPLETED'),
+      message('a1', 'ASSISTANT', 'COMPLETED'),
+      message('u2', 'USER', 'COMPLETED'),
+      message('a2', 'ASSISTANT', 'FAILED'),
+      message('u3', 'USER', 'COMPLETED'),
+      message('a3', 'ASSISTANT', 'STREAMING'),
+    ];
+    expect(toHistoryEntries(messages).map((e) => e.id)).toEqual(['u1', 'a1']);
+  });
+});
+
+describe('buildSummaryRequest instructions', () => {
+  const entries: ChatHistoryEntry[] = [
+    { id: 'u1', role: 'user', content: 'hi' },
+  ];
+
+  it('uses custom instructions when given', () => {
+    const [system] = buildSummaryRequest({
+      previousSummary: null,
+      entries,
+      maxEntryChars: 100,
+      instructions: 'ADMIN',
+    });
+    expect(system).toEqual({ role: 'system', content: 'ADMIN' });
+  });
+
+  it('keeps default instructions', () => {
+    expect(
+      buildSummaryRequest({
+        previousSummary: null,
+        entries,
+        maxEntryChars: 100,
+      })[0]?.content,
+    ).toContain('You keep notes');
   });
 });

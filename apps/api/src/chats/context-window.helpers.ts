@@ -179,6 +179,7 @@ export function buildSummaryRequest({
   previousSummary,
   entries,
   maxEntryChars,
+  instructions = SUMMARY_INSTRUCTIONS,
 }: SummaryRequestParams): OllamaHistoryMessage[] {
   const transcript = entries
     .map(
@@ -187,7 +188,7 @@ export function buildSummaryRequest({
     )
     .join('\n\n');
   return [
-    { role: 'system', content: SUMMARY_INSTRUCTIONS },
+    { role: 'system', content: instructions },
     {
       role: 'user',
       content:

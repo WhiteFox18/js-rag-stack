@@ -25,6 +25,7 @@ import {
   selectTurnsToFold,
   toPromptMessages,
 } from './context-window.helpers';
+import { readContextSettings } from './context-settings';
 import { ConversationSummaryRepository } from './conversation-summary.repository';
 
 @Injectable()
@@ -39,21 +40,7 @@ export class ContextWindowService {
     private readonly usage: UsageRecorderService,
     config: ConfigService<AppEnvironment, true>,
   ) {
-    this.settings = {
-      summarizeAtRatio: config.get('CHAT_CONTEXT_SUMMARIZE_AT_RATIO', {
-        infer: true,
-      }),
-      targetRatio: config.get('CHAT_CONTEXT_TARGET_RATIO', { infer: true }),
-      keepRecentMessages: config.get('CHAT_CONTEXT_KEEP_RECENT_MESSAGES', {
-        infer: true,
-      }),
-      charsPerToken: config.get('CHAT_CONTEXT_CHARS_PER_TOKEN', {
-        infer: true,
-      }),
-      summaryMaxRatio: config.get('CHAT_CONTEXT_SUMMARY_MAX_RATIO', {
-        infer: true,
-      }),
-    };
+    this.settings = readContextSettings(config);
   }
 
   assertContentFits({

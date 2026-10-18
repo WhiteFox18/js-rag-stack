@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { z } from 'zod';
-import type { Message } from '../generated/prisma/client';
 import type { AppEnvironment } from '../config/environment.schema';
 import { getErrorMessage } from '../common/utils/error';
 import { RedisService } from '../redis/redis.service';
 import { RedisLockService } from './redis-lock.service';
+import { toHistoryEntries } from './chats.helpers';
 import { ChatsRepository } from './chats.repository';
 import type {
   AppendChatHistoryParams,
@@ -120,30 +120,7 @@ export class ChatHistoryService {
   private async loadFromDatabase(chat_id: string): Promise<ChatHistoryEntry[]> {
     const messages = await this.repository.findMessagesForHistory(chat_id);
 
-    return messages
-      .filter((message, index) =>
-        isPartOfCompletedTurn(message, messages[index + 1]),
-      )
-      .map((message) => {
-        if (message.role === 'USER') {
-          return {
-            id: message.id,
-            role: 'user' as const,
-            content: message.content,
-          };
-        }
-
-        if (!message.model) {
-          throw new Error(`Assistant message ${message.id} has no model.`);
-        }
-
-        return {
-          id: message.id,
-          role: 'assistant' as const,
-          content: message.content,
-          model: message.model,
-        };
-      });
+    return toHistoryEntries(messages);
   }
 
   private async writeCache({
@@ -162,12 +139,4 @@ export class ChatHistoryService {
       );
     }
   }
-}
-
-// A turn whose assistant reply failed, was cancelled, or never finished is
-// excluded entirely, so the model never sees a prompt it was not answered for.
-function isPartOfCompletedTurn(message: Message, next?: Message): boolean {
-  if (message.role === 'ASSISTANT') return message.status === 'COMPLETED';
-  if (message.status !== 'COMPLETED') return false;
-  return next?.role !== 'ASSISTANT' || next.status === 'COMPLETED';
 }

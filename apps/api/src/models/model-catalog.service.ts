@@ -27,6 +27,20 @@ export class ModelCatalogService {
       }));
   }
 
+  async getDefault(): Promise<Model> {
+    const model = await this.models.findDefault();
+
+    if (!model) {
+      throw new OllamaError(
+        'MODEL_NOT_AVAILABLE',
+        'No default model is configured.',
+        409,
+      );
+    }
+
+    return model;
+  }
+
   async resolveForGeneration(name: string): Promise<Model> {
     const model = await this.models.findByName(name);
 

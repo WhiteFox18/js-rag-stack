@@ -6,7 +6,11 @@ import type {
 import type { Message } from '../generated/prisma/client';
 import type { RequestPrincipal } from '../common/models/request-principal';
 import { HttpException } from '@nestjs/common';
-import type { ChatWithModel, ToChatContextParams } from './chats.types';
+import type {
+  ChatHistoryEntry,
+  ChatWithModel,
+  ToChatContextParams,
+} from './chats.types';
 
 export function getOwnerFilter(
   principal: RequestPrincipal,
@@ -115,4 +119,42 @@ export function toChatContext({
     summary: summary?.content ?? null,
     summarizedThroughMessageId: summary?.summarized_through_message_id ?? null,
   };
+}
+
+// A turn whose assistant reply failed, was cancelled, or never finished is
+// excluded entirely, so the model never sees a prompt it was not answered for.
+export function isPartOfCompletedTurn(
+  message: Message,
+  next?: Message,
+): boolean {
+  if (message.role === 'ASSISTANT') return message.status === 'COMPLETED';
+  if (message.status !== 'COMPLETED') return false;
+  return next?.role !== 'ASSISTANT' || next.status === 'COMPLETED';
+}
+
+export function toHistoryEntries(messages: Message[]): ChatHistoryEntry[] {
+  return messages
+    .filter((message, index) =>
+      isPartOfCompletedTurn(message, messages[index + 1]),
+    )
+    .map((message) => {
+      if (message.role === 'USER') {
+        return {
+          id: message.id,
+          role: 'user' as const,
+          content: message.content,
+        };
+      }
+
+      if (!message.model) {
+        throw new Error(`Assistant message ${message.id} has no model.`);
+      }
+
+      return {
+        id: message.id,
+        role: 'assistant' as const,
+        content: message.content,
+        model: message.model,
+      };
+    });
 }

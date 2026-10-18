@@ -98,6 +98,12 @@ describe('model catalog', () => {
     expect(error).toMatchObject({ code: 'MODEL_NOT_AVAILABLE', status: 409 });
   });
 
+  it('getDefault returns the is_default model', async () => {
+    const model = await catalog().getDefault();
+    expect(model.is_default).toBe(true);
+    expect(model.name).toBe('qwen2.5:1.5b');
+  });
+
   it('seeds the env default only when no default exists', async () => {
     const seeder = new ModelDefaultSeeder(repository, config);
     await seeder.onApplicationBootstrap();
