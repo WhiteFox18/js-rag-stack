@@ -29,18 +29,20 @@ enum TokenCountSource {
 enum UsageKind {
   CHAT
   SUMMARY
+  ADMIN_SUMMARY
 }
 
 model Model {
-  id           String     @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  name         String     @unique @db.VarChar(200)
-  max_context  Int
-  is_available Boolean    @default(true)
-  is_default   Boolean    @default(false)
-  created_at   DateTime   @default(now()) @db.Timestamptz(3)
-  updated_at   DateTime   @updatedAt @db.Timestamptz(3)
-  chats        Chat[]     @relation("model_chats")
-  usage_logs   UsageLog[] @relation("model_usage_logs")
+  id                   String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name                 String             @unique @db.VarChar(200)
+  max_context          Int
+  is_available         Boolean            @default(true)
+  is_default           Boolean            @default(false)
+  created_at           DateTime           @default(now()) @db.Timestamptz(3)
+  updated_at           DateTime           @updatedAt @db.Timestamptz(3)
+  chats                Chat[]             @relation("model_chats")
+  usage_logs           UsageLog[]         @relation("model_usage_logs")
+  admin_chat_summaries AdminChatSummary[] @relation("model_admin_chat_summaries")
 
   @@map("model")
 }
@@ -110,6 +112,7 @@ model Chat {
   messages             Message[]            @relation("chat_messages")
   conversation_summary ConversationSummary? @relation("chat_conversation_summary")
   usage_logs           UsageLog[]           @relation("chat_usage_logs")
+  admin_summary        AdminChatSummary?    @relation("chat_admin_summary")
 
   @@index([user_id, last_message_at])
   @@index([anonymous_session_id, last_message_at])
@@ -135,6 +138,7 @@ model Message {
   updated_at             DateTime              @updatedAt @db.Timestamptz(3)
   chat                   Chat                  @relation("chat_messages", fields: [chat_id], references: [id], onDelete: Cascade)
   conversation_summaries ConversationSummary[] @relation("conversation_summary_through_message")
+  admin_chat_summaries   AdminChatSummary[]    @relation("admin_chat_summary_through_message")
 
   @@index([chat_id, created_at, id])
   @@map("message")
@@ -152,6 +156,22 @@ model ConversationSummary {
   summarized_through_message    Message  @relation("conversation_summary_through_message", fields: [summarized_through_message_id], references: [id], onDelete: Cascade)
 
   @@map("conversation_summary")
+}
+
+model AdminChatSummary {
+  id                            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  chat_id                       String   @unique @db.Uuid
+  content                       String   @db.Text
+  summarized_through_message_id String   @db.Uuid
+  model_id                      String   @db.Uuid
+  token_count                   Int
+  created_at                    DateTime @default(now()) @db.Timestamptz(3)
+  updated_at                    DateTime @updatedAt @db.Timestamptz(3)
+  chat                          Chat     @relation("chat_admin_summary", fields: [chat_id], references: [id], onDelete: Cascade)
+  summarized_through_message    Message  @relation("admin_chat_summary_through_message", fields: [summarized_through_message_id], references: [id], onDelete: Cascade)
+  model                         Model    @relation("model_admin_chat_summaries", fields: [model_id], references: [id], onDelete: Restrict)
+
+  @@map("admin_chat_summary")
 }
 
 model UsageLog {
