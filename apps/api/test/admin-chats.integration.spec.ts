@@ -104,6 +104,60 @@ describe('admin chats', () => {
     );
   });
 
+  it('upserts a summary and cascades its deletion with the chat', async () => {
+    const user = await prisma.user.create({
+      data: { email: `${randomUUID()}@example.com`, password_hash: 'x' },
+    });
+    userIds.push(user.id);
+    const chat = await prisma.chat.create({
+      data: { user_id: user.id, title: 'S', selected_model_id: modelId },
+    });
+    const first = await prisma.message.create({
+      data: {
+        chat_id: chat.id,
+        role: 'USER',
+        status: 'COMPLETED',
+        content: 'q',
+      },
+    });
+    const second = await prisma.message.create({
+      data: {
+        chat_id: chat.id,
+        role: 'ASSISTANT',
+        status: 'COMPLETED',
+        content: 'r',
+      },
+    });
+    expect(await repo.findSummary(chat.id)).toBeNull();
+    await repo.upsertSummary({
+      chatId: chat.id,
+      content: 'v1',
+      summarizedThroughMessageId: first.id,
+      modelId,
+      tokenCount: 3,
+    });
+    const updated = await repo.upsertSummary({
+      chatId: chat.id,
+      content: 'v2',
+      summarizedThroughMessageId: second.id,
+      modelId,
+      tokenCount: 4,
+    });
+    expect(updated).toMatchObject({
+      content: 'v2',
+      summarized_through_message_id: second.id,
+      model: { name: 'qwen2.5:1.5b' },
+    });
+    expect(
+      await prisma.adminChatSummary.count({ where: { chat_id: chat.id } }),
+    ).toBe(1);
+
+    await prisma.chat.delete({ where: { id: chat.id } });
+    expect(
+      await prisma.adminChatSummary.count({ where: { chat_id: chat.id } }),
+    ).toBe(0);
+  });
+
   it('guards the controller with AdminAuthGuard', () => {
     expect(Reflect.getMetadata('__guards__', AdminChatsController)).toContain(
       AdminAuthGuard,

@@ -11,3 +11,15 @@ export const ADMIN_CHAT_INCLUDE = {
 export type AdminChatRecord = Prisma.ChatGetPayload<{
   include: typeof ADMIN_CHAT_INCLUDE;
 }>;
+
+export type AdminChatSummaryWithModel = Prisma.AdminChatSummaryGetPayload<{
+  include: { model: { select: { name: true } } };
+}>;
+
+export interface UpsertAdminChatSummaryParams {
+  chatId: string;
+  content: string;
+  summarizedThroughMessageId: string;
+  modelId: string;
+  tokenCount: number;
+}
