@@ -1,13 +1,17 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { ApiClientError } from '@js-rag-stack/api-client';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeChatDetail } from '../../test/fixtures';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { makeChatDetail, makeSummaryState } from '../../test/fixtures';
 import { renderWithProviders } from '../../test/render';
 import { AdminChatPage } from './admin-chat-page';
 
-const api = vi.hoisted(() => ({ getChat: vi.fn() }));
+const api = vi.hoisted(() => ({
+  getChat: vi.fn(),
+  getChatSummary: vi.fn(),
+  refreshChatSummary: vi.fn(),
+}));
 vi.mock('../../lib/api', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   api,
@@ -28,6 +32,7 @@ describe('AdminChatPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.getChat.mockResolvedValue(makeChatDetail());
+    api.getChatSummary.mockResolvedValue(makeSummaryState());
   });
 
   it('shows title, model and user owner link', async () => {
@@ -42,7 +47,9 @@ describe('AdminChatPage', () => {
     );
     expect(api.getChat).toHaveBeenCalledWith('c1');
     expect(screen.getByText(/last message/)).toBeInTheDocument();
-    expect(screen.getByRole('heading').textContent).toBe('Planning a trip');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
+      'Planning a trip',
+    );
   });
 
   it('links anonymous owner with short id', async () => {
@@ -129,5 +136,178 @@ describe('AdminChatPage', () => {
     );
     renderPage();
     expect(await screen.findByText('Archived')).toBeInTheDocument();
+  });
+});
+
+const fresh = (over = {}) =>
+  makeSummaryState({
+    content: 'The user plans a trip.',
+    summarizedThroughMessageId: 'm1',
+    model: 'qwen2.5:1.5b',
+    generatedAt: '2026-10-17T10:00:00.000Z',
+    ...over,
+  });
+
+describe('ChatSummaryCard', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    api.getChat.mockResolvedValue(makeChatDetail());
+    api.getChatSummary.mockResolvedValue(makeSummaryState());
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows a fresh cached summary without refreshing', async () => {
+    api.getChatSummary.mockResolvedValue(fresh());
+    renderPage();
+    expect(
+      await screen.findByText('The user plans a trip.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Summarized through/)).toHaveTextContent(
+      'qwen2.5:1.5b',
+    );
+    expect(api.refreshChatSummary).not.toHaveBeenCalled();
+  });
+
+  it('includes the admins-only notice in the heading', async () => {
+    renderPage();
+    expect(
+      await screen.findByRole('heading', { name: /visible to admins only/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('generates when there is no summary yet and stale', async () => {
+    api.getChatSummary.mockResolvedValue(
+      makeSummaryState({ stale: true, pendingMessages: 4 }),
+    );
+    let resolve!: (v: unknown) => void;
+    api.refreshChatSummary.mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    renderPage();
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Generating summary…',
+    );
+    act(() => resolve(fresh()));
+    expect(
+      await screen.findByText('The user plans a trip.'),
+    ).toBeInTheDocument();
+    expect(api.refreshChatSummary).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps old text while updating a stale summary', async () => {
+    api.getChatSummary.mockResolvedValue(
+      fresh({ stale: true, pendingMessages: 3 }),
+    );
+    let resolve!: (v: unknown) => void;
+    api.refreshChatSummary.mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    renderPage();
+    expect(
+      await screen.findByText('The user plans a trip.'),
+    ).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Updating with 3 new messages…',
+    );
+    act(() =>
+      resolve(
+        fresh({ content: 'New text.', summarizedThroughMessageId: 'm4' }),
+      ),
+    );
+    expect(await screen.findByText('New text.')).toBeInTheDocument();
+    expect(screen.queryByText('The user plans a trip.')).toBeNull();
+  });
+
+  it('does not re-fire POST for the same pending count after success', async () => {
+    const still = fresh({ stale: true, pendingMessages: 2 });
+    api.getChatSummary.mockResolvedValue(still);
+    api.refreshChatSummary.mockResolvedValue({
+      ...still,
+      content: 'Second text.',
+    });
+    renderPage();
+    expect(await screen.findByText('Second text.')).toBeInTheDocument();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(api.refreshChatSummary).toHaveBeenCalledTimes(1);
+  });
+
+  it('polls while generating and shows the result', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api.getChatSummary
+      .mockResolvedValueOnce(
+        makeSummaryState({ stale: true, pendingMessages: 4, generating: true }),
+      )
+      .mockResolvedValue(fresh());
+    renderPage();
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Generating summary…',
+    );
+    expect(api.refreshChatSummary).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(
+      await screen.findByText('The user plans a trip.'),
+    ).toBeInTheDocument();
+    expect(api.refreshChatSummary).not.toHaveBeenCalled();
+  });
+
+  it('treats 409 as in progress and polls without an error', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api.getChatSummary
+      .mockResolvedValueOnce(
+        makeSummaryState({ stale: true, pendingMessages: 4 }),
+      )
+      .mockResolvedValue(fresh());
+    api.refreshChatSummary.mockRejectedValue(
+      new ApiClientError(409, 'SUMMARY_IN_PROGRESS', 'busy'),
+    );
+    renderPage();
+    await vi.waitFor(() =>
+      expect(api.refreshChatSummary).toHaveBeenCalledTimes(1),
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(
+      await screen.findByText('The user plans a trip.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('keeps old text on error and retries on demand', async () => {
+    api.getChatSummary.mockResolvedValue(
+      fresh({ stale: true, pendingMessages: 3 }),
+    );
+    api.refreshChatSummary.mockRejectedValueOnce(
+      new ApiClientError(503, 'OLLAMA_UNAVAILABLE', 'Ollama is down'),
+    );
+    renderPage();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Ollama is down',
+    );
+    expect(screen.getByText('The user plans a trip.')).toBeInTheDocument();
+    expect(api.refreshChatSummary).toHaveBeenCalledTimes(1);
+    api.refreshChatSummary.mockResolvedValue(fresh({ content: 'Recovered.' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Recovered.')).toBeInTheDocument();
+    expect(api.refreshChatSummary).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows empty state when there is nothing to summarize', async () => {
+    api.getChatSummary.mockResolvedValue(makeSummaryState());
+    renderPage();
+    expect(
+      await screen.findByText('Nothing to summarize yet.'),
+    ).toBeInTheDocument();
   });
 });

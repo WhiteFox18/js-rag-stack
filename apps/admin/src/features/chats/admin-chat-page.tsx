@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, toErrorMessage } from '../../lib/api';
 import { formatDateTime, shortId } from '../../lib/format';
+import { ChatSummaryCard } from './chat-summary-card';
 import { ChatTranscript } from './chat-transcript';
 
 function ownerPath(owner: AdminChatOwner): string {
@@ -75,6 +76,7 @@ export function AdminChatPage() {
               {formatDateTime(query.data.chat.lastMessageAt)}
             </p>
           </header>
+          <ChatSummaryCard chatId={chatId} />
           <ChatTranscript messages={query.data.messages} />
         </>
       )}
