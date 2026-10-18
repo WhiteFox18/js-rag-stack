@@ -40,7 +40,8 @@ export function useChatSummary(chatId: string): {
   const mutation = useMutation({
     mutationFn: () => api.refreshChatSummary(chatId),
     retry: false,
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
+      await queryClient.cancelQueries({ queryKey });
       queryClient.setQueryData(queryKey, result);
     },
     onError: (error) => {

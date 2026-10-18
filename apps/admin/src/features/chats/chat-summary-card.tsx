@@ -70,6 +70,11 @@ export function ChatSummaryCard({ chatId }: { chatId: string }) {
             {state.model ? ` · ${state.model}` : ''}
           </p>
         )}
+        {!hasError && !isUpdating && state?.stale && pending > 0 && (
+          <p className="text-xs text-fg-subtle">
+            {pending} new message{pending === 1 ? '' : 's'} since this summary.
+          </p>
+        )}
         {hasError && (
           <div className="flex items-center gap-3">
             <p role="alert" className="text-sm text-danger">
@@ -91,9 +96,9 @@ export function ChatSummaryCard({ chatId }: { chatId: string }) {
   return (
     <section className="space-y-3 rounded-xl border border-border bg-surface p-4">
       <h2 className="text-sm font-semibold">
-        Summary{' '}
+        Admin summary{' '}
         <span className="font-normal text-fg-subtle">
-          (visible to admins only)
+          · visible to admins only
         </span>
       </h2>
       {body}
