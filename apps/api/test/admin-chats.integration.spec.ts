@@ -17,6 +17,7 @@ describe('admin chats', () => {
   let service: AdminChatsService;
   let repo: AdminChatsRepository;
   let modelId: string;
+  const userIds: string[] = [];
 
   beforeAll(async () => {
     const config = new ConfigService<AppEnvironment, true>(
@@ -39,6 +40,8 @@ describe('admin chats', () => {
   });
 
   afterAll(async () => {
+    // chat and message rows cascade from user
+    await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.onApplicationShutdown();
   });
 
@@ -46,25 +49,34 @@ describe('admin chats', () => {
     const user = await prisma.user.create({
       data: { email: `${randomUUID()}@example.com`, password_hash: 'x' },
     });
+    userIds.push(user.id);
     const chat = await prisma.chat.create({
       data: { user_id: user.id, title: 'Hello', selected_model_id: modelId },
     });
+    const sameTime = new Date('2026-01-01T00:00:00.000Z');
+    const idFirst = '00000000-0000-7000-8000-000000000001';
+    const idSecond = '00000000-0000-7000-8000-000000000002';
+    // inserted in reverse id order with equal created_at: id breaks the tie
     await prisma.message.create({
       data: {
-        chat_id: chat.id,
-        role: 'USER',
-        status: 'COMPLETED',
-        content: 'first',
-      },
-    });
-    await prisma.message.create({
-      data: {
+        id: idSecond,
+        created_at: sameTime,
         chat_id: chat.id,
         role: 'ASSISTANT',
         status: 'COMPLETED',
         content: 'second',
         prompt_tokens: 3,
         completion_tokens: 4,
+      },
+    });
+    await prisma.message.create({
+      data: {
+        id: idFirst,
+        created_at: sameTime,
+        chat_id: chat.id,
+        role: 'USER',
+        status: 'COMPLETED',
+        content: 'first',
       },
     });
 
