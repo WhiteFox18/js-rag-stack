@@ -223,3 +223,42 @@ export interface AdminAnonymousDetail {
   usage: UsageTotals;
   breakdown: UsageBreakdownItem[];
 }
+
+export type AdminChatOwner =
+  | { type: 'user'; id: string; email: string }
+  | { type: 'anonymous'; id: string }
+  | null;
+
+export interface AdminChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  status: 'streaming' | 'completed' | 'failed' | 'cancelled';
+  content: string;
+  model: string | null;
+  createdAt: string;
+  promptTokens: number | null;
+  completionTokens: number | null;
+}
+
+export interface AdminChatDetail {
+  chat: {
+    id: string;
+    title: string;
+    model: string;
+    createdAt: string;
+    lastMessageAt: string;
+    archivedAt: string | null;
+    owner: AdminChatOwner;
+  };
+  messages: AdminChatMessage[];
+}
+
+export interface AdminChatSummaryState {
+  content: string | null;
+  summarizedThroughMessageId: string | null;
+  model: string | null;
+  generatedAt: string | null; // admin_chat_summary.updated_at
+  stale: boolean;
+  pendingMessages: number;
+  generating: boolean;
+}

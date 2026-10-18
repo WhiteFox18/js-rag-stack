@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AdminAnonymousSessionsModule } from './anonymous-sessions/admin-anonymous-sessions.module';
 import { AdminAuthModule } from './auth/admin-auth.module';
+import { AdminChatsModule } from './chats/admin-chats.module';
 import { AdminModelsModule } from './models/admin-models.module';
 import { AdminUsersModule } from './users/admin-users.module';
 
@@ -10,6 +11,7 @@ import { AdminUsersModule } from './users/admin-users.module';
     AdminUsersModule,
     AdminAnonymousSessionsModule,
     AdminModelsModule,
+    AdminChatsModule,
   ],
 })
 export class AdminModule {}
