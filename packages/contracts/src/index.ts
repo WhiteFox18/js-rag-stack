@@ -137,7 +137,7 @@ export interface AdminSignInInput {
   password: string;
 }
 
-export type UsageKind = 'chat' | 'summary';
+export type UsageKind = 'chat' | 'summary' | 'admin_summary';
 
 export interface UsageTotals {
   requests: number;

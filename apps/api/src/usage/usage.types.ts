@@ -11,7 +11,8 @@ export interface OwnerColumns {
 }
 
 export interface RecordUsageParams {
-  principal: RequestPrincipal;
+  // null for system-attributed usage that belongs to no user (ADMIN_SUMMARY).
+  principal: RequestPrincipal | null;
   chatId: string | null;
   modelId: string;
   kind: UsageKind;

@@ -18,6 +18,7 @@ import {
 import { PrismaService } from '../src/prisma/prisma.service';
 import { RedisService } from '../src/redis/redis.service';
 import { UsageRecorderService } from '../src/usage/usage-recorder.service';
+import { UsageReportingService } from '../src/usage/usage-reporting.service';
 import { UsageRepository } from '../src/usage/usage.repository';
 import { UsageTransferService } from '../src/usage/usage-transfer.service';
 import { ensureDefaultModel } from './models.test-helpers';
@@ -26,6 +27,7 @@ describe('usage recording', () => {
   let prisma: PrismaService;
   let redis: RedisService;
   let recorder: UsageRecorderService;
+  let reporting: UsageReportingService;
   let auth: AuthService;
   let anonymousSessions: AnonymousSessionsService;
   let model_id: string;
@@ -47,6 +49,7 @@ describe('usage recording', () => {
     redis = new RedisService(config);
     const usageRepository = new UsageRepository(prisma);
     recorder = new UsageRecorderService(usageRepository);
+    reporting = new UsageReportingService(usageRepository);
     anonymousSessions = new AnonymousSessionsService(
       new AnonymousSessionsRepository(prisma),
       config,
@@ -207,5 +210,55 @@ describe('usage recording', () => {
     await prisma.anonymousSession.delete({
       where: { id: stale.anonymous_session_id },
     });
+  });
+
+  it('records ownerless ADMIN_SUMMARY rows that do not change user totals', async () => {
+    const owner = await prisma.user.create({
+      data: {
+        email: `usage-${randomBytes(6).toString('hex')}@example.com`,
+        password_hash: 'x',
+      },
+    });
+    userIds.push(owner.id);
+    const chat = await prisma.chat.create({
+      data: { user_id: owner.id, title: 't', selected_model_id: model_id },
+    });
+    await recorder.record({
+      principal: {
+        type: 'authenticated',
+        user_id: owner.id,
+        auth_session_id: 'unused',
+      },
+      chatId: chat.id,
+      modelId: model_id,
+      kind: 'CHAT',
+      inputTokens: 10,
+      outputTokens: 5,
+    });
+    const query = { owner: { type: 'user', id: owner.id }, range: {} } as const;
+    const before = await reporting.getTotals(query);
+
+    await recorder.record({
+      principal: null,
+      chatId: chat.id,
+      modelId: model_id,
+      kind: 'ADMIN_SUMMARY',
+      inputTokens: 50,
+      outputTokens: 20,
+    });
+
+    const rows = await prisma.usageLog.findMany({
+      where: { chat_id: chat.id, kind: 'ADMIN_SUMMARY' },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      chat_id: chat.id,
+      user_id: null,
+      anonymous_session_id: null,
+      input_tokens: 50,
+      output_tokens: 20,
+    });
+    expect(await reporting.getTotals(query)).toEqual(before);
+    await prisma.usageLog.deleteMany({ where: { chat_id: chat.id } });
   });
 });
