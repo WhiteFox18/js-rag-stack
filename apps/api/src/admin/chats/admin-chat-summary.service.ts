@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AdminChatSummaryState } from '@js-rag-stack/contracts';
 import { toHistoryEntries } from '../../chats/chats.helpers';
@@ -30,6 +30,7 @@ const ADMIN_SUMMARY_MAX_TOKENS = 400;
 
 @Injectable()
 export class AdminChatSummaryService {
+  private readonly logger = new Logger(AdminChatSummaryService.name);
   private readonly settings: ContextSettings;
 
   constructor(
@@ -60,6 +61,28 @@ export class AdminChatSummaryService {
     });
     if (!lock) throw AdminChatSummaryError.inProgress();
 
+    // Heartbeat for the whole refresh: one model call can outlive the lock TTL.
+    const ttlMs = this.config.get('REDIS_LOCK_TTL_MS', { infer: true });
+    const heartbeat = setInterval(
+      () => {
+        lock
+          .extend(ttlMs)
+          .then((extended) => {
+            if (!extended) {
+              this.logger.warn(
+                `Admin summary lock for chat ${chatId} was lost mid-refresh.`,
+              );
+            }
+          })
+          .catch((error: unknown) => {
+            this.logger.warn(
+              `Admin summary lock renewal failed: ${String(error)}`,
+            );
+          });
+      },
+      Math.max(1_000, Math.floor(ttlMs / 3)),
+    );
+
     try {
       const current = await this.loadState(chatId, false);
       if (!current.state.stale) return current.state;
@@ -74,13 +97,12 @@ export class AdminChatSummaryService {
           ? current.summary
           : null,
         pending: current.pending,
-        extendLock: () =>
-          lock.extend(this.config.get('REDIS_LOCK_TTL_MS', { infer: true })),
       });
       // Reload: the chat may have grown while the model was working.
       const { state } = await this.loadState(chatId, false, saved);
       return state;
     } finally {
+      clearInterval(heartbeat);
       await lock.release();
     }
   }
@@ -89,12 +111,10 @@ export class AdminChatSummaryService {
     chatId,
     previous,
     pending,
-    extendLock,
   }: {
     chatId: string;
     previous: AdminChatSummaryWithModel | null;
     pending: ReturnType<typeof toHistoryEntries>;
-    extendLock: () => Promise<boolean>;
   }): Promise<AdminChatSummaryWithModel> {
     const { charsPerToken } = this.settings;
     const model = await this.catalog.getDefault();
@@ -103,7 +123,7 @@ export class AdminChatSummaryService {
       this.config.get('OLLAMA_TOTAL_TIMEOUT_MS', { infer: true }),
     );
     const lastEntry = pending.at(-1);
-    if (!lastEntry) throw AdminChatSummaryError.failed();
+    if (!lastEntry) throw new Error('No pending entries to summarize.');
 
     let content: string | null = previous?.content ?? null;
     let tokenCount = previous?.token_count ?? 0;
@@ -139,17 +159,24 @@ export class AdminChatSummaryService {
       tokenCount =
         result.completionTokens ??
         estimateMessageTokens(content, charsPerToken);
-      await extendLock();
     }
 
-    if (content === null) throw AdminChatSummaryError.failed();
-    return this.repository.upsertSummary({
-      chatId,
-      content,
-      summarizedThroughMessageId: lastEntry.id,
-      modelId: model.id,
-      tokenCount,
-    });
+    if (content === null) throw new Error('No summary was produced.');
+    try {
+      return await this.repository.upsertSummary({
+        chatId,
+        content,
+        summarizedThroughMessageId: lastEntry.id,
+        modelId: model.id,
+        tokenCount,
+      });
+    } catch (error) {
+      // The chat (and its messages) may have been deleted mid-refresh.
+      if (!(await this.repository.chatExists(chatId))) {
+        throw new NotFoundException('Chat not found.');
+      }
+      throw error;
+    }
   }
 
   private async loadState(
