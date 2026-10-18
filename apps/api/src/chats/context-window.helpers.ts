@@ -175,20 +175,26 @@ function truncate(text: string, maxChars: number): string {
   return text.length > maxChars ? `${text.slice(0, maxChars)}…` : text;
 }
 
-export function buildSummaryRequest({
-  previousSummary,
-  entries,
-  maxEntryChars,
-  instructions = SUMMARY_INSTRUCTIONS,
-}: SummaryRequestParams): OllamaHistoryMessage[] {
-  const transcript = entries
+export function formatTranscript(
+  entries: ChatHistoryEntry[],
+  maxEntryChars: number,
+): string {
+  return entries
     .map(
       (entry) =>
         `${entry.role === 'user' ? 'User' : 'Assistant'}: ${truncate(entry.content, maxEntryChars)}`,
     )
     .join('\n\n');
+}
+
+export function buildSummaryRequest({
+  previousSummary,
+  entries,
+  maxEntryChars,
+}: SummaryRequestParams): OllamaHistoryMessage[] {
+  const transcript = formatTranscript(entries, maxEntryChars);
   return [
-    { role: 'system', content: instructions },
+    { role: 'system', content: SUMMARY_INSTRUCTIONS },
     {
       role: 'user',
       content:

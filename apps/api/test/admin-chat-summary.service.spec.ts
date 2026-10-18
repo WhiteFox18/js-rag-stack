@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ADMIN_SUMMARY_INSTRUCTIONS } from '../src/admin/chats/admin-chat-summary.helpers';
 import type { UpsertAdminChatSummaryParams } from '../src/admin/chats/admin-chats.types';
@@ -149,7 +149,9 @@ describe('AdminChatSummaryService', () => {
     await service.refreshSummary('chat');
     const args = ollama.complete.mock.calls[0]![0];
     expect(args.messages[0]!.content).toBe(ADMIN_SUMMARY_INSTRUCTIONS);
-    expect(args.messages[1]!.content).toContain('Existing notes:\nold notes');
+    expect(args.messages[1]!.content).toContain(
+      'Existing overview:\n<overview>\nold notes\n</overview>',
+    );
     expect(args.messages[1]!.content).toContain('Q2');
     expect(args.messages[1]!.content).toContain('R2');
     expect(args.messages[1]!.content).not.toContain('Q1');
@@ -175,7 +177,7 @@ describe('AdminChatSummaryService', () => {
     await service.refreshSummary('chat');
     expect(ollama.complete.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(ollama.complete.mock.calls[1]![0].messages[1]!.content).toContain(
-      'Existing notes:\nfirst result',
+      'Existing overview:\n<overview>\nfirst result\n</overview>',
     );
   });
 
@@ -203,6 +205,36 @@ describe('AdminChatSummaryService', () => {
     expect(usage.record).toHaveBeenCalledTimes(1);
     expect(repository.upsertSummary).not.toHaveBeenCalled();
     expect(lock.release).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws SUMMARY_FAILED and saves nothing when the model echoes the transcript', async () => {
+    const { service, repository, usage, lock } = setup({
+      results: [
+        { content: 'R2'.padEnd(20, 'r'), promptTokens: 3, completionTokens: 5 },
+      ],
+    });
+    await expect(service.refreshSummary('chat')).rejects.toMatchObject({
+      code: 'SUMMARY_FAILED',
+    });
+    expect(usage.record).toHaveBeenCalledTimes(1);
+    expect(repository.upsertSummary).not.toHaveBeenCalled();
+    expect(lock.release).toHaveBeenCalledTimes(1);
+  });
+
+  it('strips wrapper tags from the saved overview', async () => {
+    const { service, repository } = setup({
+      results: [
+        {
+          content: '<overview>Tidy.</overview>',
+          promptTokens: 1,
+          completionTokens: 2,
+        },
+      ],
+    });
+    await service.refreshSummary('chat');
+    expect(repository.upsertSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ content: 'Tidy.' }),
+    );
   });
 
   it('keeps previous summary when complete() throws', async () => {
@@ -259,7 +291,7 @@ describe('AdminChatSummaryService', () => {
     const { service, ollama } = setup({ summary: storedSummary('gone') });
     await service.refreshSummary('chat');
     const content = ollama.complete.mock.calls[0]![0].messages[1]!.content;
-    expect(content).not.toContain('Existing notes:');
+    expect(content).not.toContain('Existing overview:');
     for (const text of ['Q1', 'R1', 'Q2', 'R2']) {
       expect(content).toContain(text);
     }
@@ -275,6 +307,41 @@ describe('AdminChatSummaryService', () => {
     await expect(service.refreshSummary('chat')).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('does not log a lost lock for an extend that resolves after the refresh finished', async () => {
+    jest.useFakeTimers();
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    try {
+      const ttl = config.get('REDIS_LOCK_TTL_MS', { infer: true });
+      const { service, ollama, lock } = setup();
+      let resolveComplete: (value: unknown) => void = () => undefined;
+      ollama.complete.mockReset().mockReturnValue(
+        new Promise((resolve) => {
+          resolveComplete = resolve;
+        }),
+      );
+      let resolveExtend: (value: boolean) => void = () => undefined;
+      lock.extend.mockReturnValue(
+        new Promise<boolean>((resolve) => {
+          resolveExtend = resolve;
+        }),
+      );
+      const pending = service.refreshSummary('chat');
+      await jest.advanceTimersByTimeAsync(Math.floor(ttl / 3));
+      resolveComplete({
+        content: 'done',
+        promptTokens: 1,
+        completionTokens: 1,
+      });
+      await pending;
+      resolveExtend(false);
+      await jest.advanceTimersByTimeAsync(0);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      jest.useRealTimers();
+    }
   });
 
   it('heartbeats the lock while complete() is pending, then stops', async () => {

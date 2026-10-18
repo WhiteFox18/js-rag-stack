@@ -5,6 +5,7 @@ import {
   entriesAfter,
   estimateMessageTokens,
   estimatePromptTokens,
+  formatTranscript,
   getContextBudget,
   isDegenerateSummary,
   needsSummarization,
@@ -240,28 +241,47 @@ describe('toHistoryEntries', () => {
     ];
     expect(toHistoryEntries(messages).map((e) => e.id)).toEqual(['u1', 'a1']);
   });
+
+  it('keeps a trailing completed user message with no reply', () => {
+    const messages = [
+      message('u1', 'USER', 'COMPLETED'),
+      message('a1', 'ASSISTANT', 'COMPLETED'),
+      message('u2', 'USER', 'COMPLETED'),
+    ];
+    expect(toHistoryEntries(messages).map((e) => e.id)).toEqual([
+      'u1',
+      'a1',
+      'u2',
+    ]);
+  });
+
+  it('throws on a completed assistant message without a model', () => {
+    const messages = [
+      message('u1', 'USER', 'COMPLETED'),
+      { ...message('a1', 'ASSISTANT', 'COMPLETED'), model: null },
+    ];
+    expect(() => toHistoryEntries(messages)).toThrow(/has no model/);
+  });
+});
+
+describe('formatTranscript', () => {
+  it('labels roles, truncates and separates entries by a blank line', () => {
+    const entries: ChatHistoryEntry[] = [
+      { id: 'u1', role: 'user', content: 'hello' },
+      { id: 'a1', role: 'assistant', content: 'abcdefgh', model: 'm' },
+    ];
+    expect(formatTranscript(entries, 4)).toBe(
+      'User: hell…\n\nAssistant: abcd…',
+    );
+  });
 });
 
 describe('buildSummaryRequest instructions', () => {
-  const entries: ChatHistoryEntry[] = [
-    { id: 'u1', role: 'user', content: 'hi' },
-  ];
-
-  it('uses custom instructions when given', () => {
-    const [system] = buildSummaryRequest({
-      previousSummary: null,
-      entries,
-      maxEntryChars: 100,
-      instructions: 'ADMIN',
-    });
-    expect(system).toEqual({ role: 'system', content: 'ADMIN' });
-  });
-
-  it('keeps default instructions', () => {
+  it('uses the default notes instructions', () => {
     expect(
       buildSummaryRequest({
         previousSummary: null,
-        entries,
+        entries: [{ id: 'u1', role: 'user', content: 'hi' }],
         maxEntryChars: 100,
       })[0]?.content,
     ).toContain('You keep notes');

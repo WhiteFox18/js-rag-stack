@@ -54,8 +54,10 @@ describe('admin chats', () => {
       data: { user_id: user.id, title: 'Hello', selected_model_id: modelId },
     });
     const sameTime = new Date('2026-01-01T00:00:00.000Z');
-    const idFirst = '00000000-0000-7000-8000-000000000001';
-    const idSecond = '00000000-0000-7000-8000-000000000002';
+    const [idFirst, idSecond] = [randomUUID(), randomUUID()].sort() as [
+      string,
+      string,
+    ];
     // inserted in reverse id order with equal created_at: id breaks the tie
     await prisma.message.create({
       data: {

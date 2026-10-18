@@ -5,7 +5,6 @@ import { toHistoryEntries } from '../../chats/chats.helpers';
 import type { ContextSettings } from '../../chats/chats.types';
 import { readContextSettings } from '../../chats/context-settings';
 import {
-  buildSummaryRequest,
   chunkEntries,
   estimateMessageTokens,
   getContextBudget,
@@ -19,8 +18,10 @@ import { RedisService } from '../../redis/redis.service';
 import { UsageRecorderService } from '../../usage/usage-recorder.service';
 import { AdminChatSummaryError } from './admin-chat-summary.errors';
 import {
-  ADMIN_SUMMARY_INSTRUCTIONS,
   adminSummaryLockKey,
+  buildAdminSummaryRequest,
+  cleanAdminSummary,
+  isEchoedSummary,
   toSummaryState,
 } from './admin-chat-summary.helpers';
 import { AdminChatsRepository } from './admin-chats.repository';
@@ -63,12 +64,13 @@ export class AdminChatSummaryService {
 
     // Heartbeat for the whole refresh: one model call can outlive the lock TTL.
     const ttlMs = this.config.get('REDIS_LOCK_TTL_MS', { infer: true });
+    let done = false;
     const heartbeat = setInterval(
       () => {
         lock
           .extend(ttlMs)
           .then((extended) => {
-            if (!extended) {
+            if (!extended && !done) {
               this.logger.warn(
                 `Admin summary lock for chat ${chatId} was lost mid-refresh.`,
               );
@@ -102,6 +104,7 @@ export class AdminChatSummaryService {
       const { state } = await this.loadState(chatId, false, saved);
       return state;
     } finally {
+      done = true;
       clearInterval(heartbeat);
       await lock.release();
     }
@@ -135,17 +138,16 @@ export class AdminChatSummaryService {
     })) {
       const result = await this.ollama.complete({
         model: model.name,
-        messages: buildSummaryRequest({
+        messages: buildAdminSummaryRequest({
           previousSummary: content,
           entries: chunk,
           maxEntryChars: budget.chunkTokens * charsPerToken,
-          instructions: ADMIN_SUMMARY_INSTRUCTIONS,
         }),
         contextTokens: model.max_context,
         maxTokens: Math.min(budget.summaryMaxTokens, ADMIN_SUMMARY_MAX_TOKENS),
         signal,
       });
-      // Recorded before the degenerate check: the tokens were spent anyway.
+      // Recorded before the degenerate/echo check: the tokens were spent anyway.
       await this.usage.record({
         principal: null,
         chatId,
@@ -154,8 +156,9 @@ export class AdminChatSummaryService {
         inputTokens: result.promptTokens,
         outputTokens: result.completionTokens,
       });
-      content = result.content.trim();
-      if (isDegenerateSummary(content)) throw AdminChatSummaryError.failed();
+      content = cleanAdminSummary(result.content);
+      if (isDegenerateSummary(content) || isEchoedSummary(content, chunk))
+        throw AdminChatSummaryError.failed();
       tokenCount =
         result.completionTokens ??
         estimateMessageTokens(content, charsPerToken);
