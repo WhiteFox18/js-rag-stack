@@ -1,5 +1,6 @@
 import { screen } from '@testing-library/react';
 import { ApiClientError } from '@js-rag-stack/api-client';
+import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeChatDetail } from '../../test/fixtures';
@@ -40,6 +41,8 @@ describe('AdminChatPage', () => {
       '/users/0199a000-0000-7000-8000-000000000001',
     );
     expect(api.getChat).toHaveBeenCalledWith('c1');
+    expect(screen.getByText(/last message/)).toBeInTheDocument();
+    expect(screen.getByRole('heading').textContent).toBe('Planning a trip');
   });
 
   it('links anonymous owner with short id', async () => {
@@ -76,6 +79,34 @@ describe('AdminChatPage', () => {
     });
     renderPage();
     expect(await screen.findByText('failed')).toBeInTheDocument();
+  });
+
+  it('badges cancelled and streaming messages', async () => {
+    const base = makeChatDetail();
+    api.getChat.mockResolvedValue({
+      ...base,
+      messages: [
+        { ...base.messages[0]!, id: 'a', status: 'cancelled' },
+        { ...base.messages[1]!, id: 'b', status: 'streaming' },
+      ],
+    });
+    renderPage();
+    expect(await screen.findByText('cancelled')).toBeInTheDocument();
+    expect(screen.getByText('streaming')).toBeInTheDocument();
+  });
+
+  it('Back falls back to the owner page', async () => {
+    renderWithProviders({
+      route: '/chats/c1',
+      ui: (
+        <Routes>
+          <Route path="/chats/:chatId" element={<AdminChatPage />} />
+          <Route path="/users/:userId" element={<p>Owner route</p>} />
+        </Routes>
+      ),
+    });
+    await userEvent.click(await screen.findByRole('button', { name: /Back/ }));
+    expect(await screen.findByText('Owner route')).toBeInTheDocument();
   });
 
   it('shows empty state', async () => {

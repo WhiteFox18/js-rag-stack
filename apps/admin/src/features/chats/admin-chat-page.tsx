@@ -27,6 +27,8 @@ export function AdminChatPage() {
   const query = useQuery({
     queryKey: ['chats', chatId],
     queryFn: () => api.getChat(chatId),
+    retry: (count, error) =>
+      !(error instanceof ApiClientError && error.status === 404) && count < 1,
   });
   const owner = query.data?.chat.owner ?? null;
 
@@ -58,18 +60,19 @@ export function AdminChatPage() {
       {query.data && (
         <>
           <header className="space-y-1">
-            <h1 className="flex items-center gap-2 text-lg font-semibold">
-              {query.data.chat.title}
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-semibold">{query.data.chat.title}</h1>
               {query.data.chat.archivedAt && (
-                <span className="rounded border border-border px-1.5 py-0.5 text-xs font-normal text-fg-muted">
+                <span className="rounded border border-border px-1.5 py-0.5 text-xs text-fg-muted">
                   Archived
                 </span>
               )}
-            </h1>
+            </div>
             <p className="text-sm text-fg-muted">
               <OwnerLabel owner={query.data.chat.owner} /> ·{' '}
               {query.data.chat.model} · created{' '}
-              {formatDateTime(query.data.chat.createdAt)}
+              {formatDateTime(query.data.chat.createdAt)} · last message{' '}
+              {formatDateTime(query.data.chat.lastMessageAt)}
             </p>
           </header>
           <ChatTranscript messages={query.data.messages} />
