@@ -36,3 +36,15 @@ export class AdminChatDetailDto {
   @ApiProperty({ type: AdminChatMessageDto, isArray: true })
   messages!: AdminChatMessageDto[];
 }
+
+export class AdminChatSummaryStateDto {
+  @ApiProperty({ type: String, nullable: true }) content!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  summarizedThroughMessageId!: string | null;
+  @ApiProperty({ type: String, nullable: true }) model!: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' })
+  generatedAt!: string | null;
+  @ApiProperty() stale!: boolean;
+  @ApiProperty() pendingMessages!: number;
+  @ApiProperty() generating!: boolean;
+}
