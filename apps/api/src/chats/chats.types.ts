@@ -202,6 +202,7 @@ export interface SummaryRequestParams {
   previousSummary: string | null;
   entries: ChatHistoryEntry[];
   maxEntryChars: number;
+  instructions?: string;
 }
 
 export interface PromptMessagesParams {

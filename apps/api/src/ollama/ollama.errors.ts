@@ -1,3 +1,5 @@
+import { CodedError } from '../common/errors/coded-error';
+
 export type OllamaErrorCode =
   | 'OLLAMA_UNAVAILABLE'
   | 'OLLAMA_TIMEOUT'
@@ -5,12 +7,12 @@ export type OllamaErrorCode =
   | 'MODEL_NOT_ALLOWED'
   | 'MODEL_NOT_AVAILABLE';
 
-export class OllamaError extends Error {
+export class OllamaError extends CodedError {
   constructor(
-    readonly code: OllamaErrorCode,
+    override readonly code: OllamaErrorCode,
     message: string,
-    readonly status = 503,
+    status = 503,
   ) {
-    super(message);
+    super(code, message, status);
   }
 }

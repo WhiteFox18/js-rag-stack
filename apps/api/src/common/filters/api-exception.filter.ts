@@ -6,7 +6,7 @@ import {
   type ExceptionFilter,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { OllamaError } from '../../ollama/ollama.errors';
+import { CodedError } from '../errors/coded-error';
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
@@ -31,7 +31,7 @@ function getErrorDetails(error: unknown): {
   code: string;
   message: string;
 } {
-  if (error instanceof OllamaError) {
+  if (error instanceof CodedError) {
     return { status: error.status, code: error.code, message: error.message };
   }
 
