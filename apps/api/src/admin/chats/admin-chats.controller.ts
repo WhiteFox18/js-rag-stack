@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBadGatewayResponse,
   ApiConflictResponse,
   ApiCookieAuth,
   ApiNotFoundResponse,
@@ -60,6 +61,7 @@ export class AdminChatsController {
   @ApiOperation({ summary: 'Generate or refresh the chat summary' })
   @ApiOkResponse({ type: AdminChatSummaryStateDto })
   @ApiConflictResponse()
+  @ApiBadGatewayResponse()
   @ApiNotFoundResponse()
   refreshSummary(
     @Param('id', new ParseUUIDPipe()) id: string,

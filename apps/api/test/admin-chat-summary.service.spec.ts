@@ -240,11 +240,10 @@ describe('AdminChatSummaryService', () => {
     expect(state.pendingMessages).toBe(2);
   });
 
-  it('releases the lock after success and extends between chunks', async () => {
+  it('releases the lock after success', async () => {
     const { service, lock } = setup();
     await service.refreshSummary('chat');
     expect(lock.release).toHaveBeenCalledTimes(1);
-    expect(lock.extend).toHaveBeenCalled();
   });
 
   it('getSummary reports generating when the lock key exists', async () => {
@@ -254,6 +253,59 @@ describe('AdminChatSummaryService', () => {
     expect(redis.get).toHaveBeenCalledWith('admin-chat-summary-lock:chat');
     expect(state.generating).toBe(true);
     expect(state.pendingMessages).toBe(2);
+  });
+
+  it('summarizes from scratch when the through-message is missing', async () => {
+    const { service, ollama } = setup({ summary: storedSummary('gone') });
+    await service.refreshSummary('chat');
+    const content = ollama.complete.mock.calls[0]![0].messages[1]!.content;
+    expect(content).not.toContain('Existing notes:');
+    for (const text of ['Q1', 'R1', 'Q2', 'R2']) {
+      expect(content).toContain(text);
+    }
+  });
+
+  it('maps a mid-refresh chat deletion to NotFoundException', async () => {
+    const { service, repository } = setup();
+    repository.upsertSummary.mockRejectedValue(new Error('FK violated'));
+    repository.chatExists
+      .mockReset()
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    await expect(service.refreshSummary('chat')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('heartbeats the lock while complete() is pending, then stops', async () => {
+    jest.useFakeTimers();
+    try {
+      const ttl = config.get('REDIS_LOCK_TTL_MS', { infer: true });
+      const { service, ollama, lock } = setup();
+      let resolveComplete: (value: unknown) => void = () => undefined;
+      ollama.complete.mockReset().mockReturnValue(
+        new Promise((resolve) => {
+          resolveComplete = resolve;
+        }),
+      );
+      const pending = service.refreshSummary('chat');
+      await jest.advanceTimersByTimeAsync(Math.floor(ttl / 3));
+      expect(lock.extend).toHaveBeenCalledWith(ttl);
+      const callsBefore = lock.extend.mock.calls.length;
+      expect(callsBefore).toBeGreaterThanOrEqual(1);
+
+      resolveComplete({
+        content: 'done',
+        promptTokens: 1,
+        completionTokens: 1,
+      });
+      await pending;
+      await jest.advanceTimersByTimeAsync(ttl * 3);
+      expect(lock.extend.mock.calls.length).toBe(callsBefore);
+      expect(lock.release).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('throws NotFoundException for a missing chat', async () => {
